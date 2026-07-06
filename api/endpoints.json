@@ -1,0 +1,5143 @@
+{
+  "source": "compdemocracy/polis stable@adce54b (2026-07-05)",
+  "extracted": "2026-07-06",
+  "endpoint_count": 197,
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/",
+      "handler": "handle_GET_conditionalIndexFetcher in server/src/server.ts",
+      "auth": "none (checks auth cookie)",
+      "params": [],
+      "description": "Root page: serves home index for anonymous visitors, or redirects logged-in users to their conversations",
+      "response_hint": "HTML or redirect",
+      "stability": "core",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/*embed*js/* (regex ^/.*embed.*js/.*)",
+      "handler": "proxy in server/src/utils/domain.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Proxies embed JavaScript assets to the static file server",
+      "response_hint": "static asset",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/__webpack_hmr (regex ^/__webpack_hmr$)",
+      "handler": "makeFileFetcher in server/src/utils/file-fetcher.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Passthrough for webpack hot-module-reload eventsource (dev tooling)",
+      "response_hint": "eventsource stream",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/about (regex ^/about$)",
+      "handler": "makeRedirectorTo('/home') in server/src/utils/domain.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Redirects /about to /home",
+      "response_hint": "302 redirect",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/account (regex ^/account(/.*)?)",
+      "handler": "fetchIndexForAdminPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves admin SPA index (account page)",
+      "response_hint": "HTML",
+      "stability": "admin",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/all_conversations",
+      "handler": "handle_GET_all_conversations (server/src/routes/conversations.ts)",
+      "auth": "moveToBody, hybridAuth(assignToP); handler requires isPolisDev(uid) (server-operator whitelist), else 403",
+      "params": [
+        {
+          "name": "limit",
+          "location": "query",
+          "required": false,
+          "type": "getIntInRange(1, 9999)",
+          "description": "default 50, capped at 500 by pagination helper"
+        },
+        {
+          "name": "offset",
+          "location": "query",
+          "required": false,
+          "type": "getIntInRange(0, 99999999)"
+        },
+        {
+          "name": "sort_by",
+          "location": "query",
+          "required": false,
+          "type": "getStringLimitLength(1, 50)",
+          "description": "created (default) | updated/modified | participant_count | comment_count"
+        },
+        {
+          "name": "sort_dir",
+          "location": "query",
+          "required": false,
+          "type": "getStringLimitLength(1, 4)",
+          "description": "asc | desc (default)"
+        },
+        {
+          "name": "owner_email",
+          "location": "query",
+          "required": false,
+          "type": "getOptionalStringLimitLength(999)",
+          "description": "ILIKE substring match on owner email"
+        },
+        {
+          "name": "is_active",
+          "location": "query",
+          "required": false,
+          "type": "getBool"
+        },
+        {
+          "name": "recently_updated_days",
+          "location": "query",
+          "required": false,
+          "type": "getIntInRange(0, 36500)"
+        },
+        {
+          "name": "recently_created_days",
+          "location": "query",
+          "required": false,
+          "type": "getIntInRange(0, 36500)"
+        },
+        {
+          "name": "min_comment_count",
+          "location": "query",
+          "required": false,
+          "type": "getIntInRange(0, 100000000)"
+        },
+        {
+          "name": "min_participant_count",
+          "location": "query",
+          "required": false,
+          "type": "getIntInRange(0, 100000000)"
+        }
+      ],
+      "description": "Server-operator-only paginated listing of ALL conversations on the instance with participant/comment counts and owner_email, filterable and sortable.",
+      "response_hint": "200 JSON {conversations: [...], pagination: {limit, offset, total, ...}}; 403 polis_err_no_access_for_this_user",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "conversations"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/auth/deregister",
+      "handler": "handle_POST_auth_deregister_jwt in server/src/auth/routes.ts",
+      "auth": "none — registered with no middleware at all (no auth, no param validators)",
+      "params": [],
+      "description": "JWT-era logout stub: server does nothing and always returns 200; the client is responsible for discarding its JWT (and optionally hitting the OIDC logout endpoint).",
+      "response_hint": "JSON {status: 'success', message: 'Logout successful. Please remove your JWT token.'}",
+      "stability": "core",
+      "agent_relevance": "low",
+      "group": "participants-users-auth"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/bid",
+      "handler": "handle_GET_bid (server/src/routes/math.ts)",
+      "auth": "moveToBody + hybridAuth(assignToP) (requires signed-in user; resolves caller's pid)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid (zid)"
+        },
+        {
+          "name": "math_tick",
+          "location": "query",
+          "required": false,
+          "type": "getInt (default 0)"
+        }
+      ],
+      "description": "Returns the calling user's own base-cluster id (bid) in the conversation, computed by locating their pid in the bidToPid mapping against current math results; 304 when math not available; must not be called in demo mode (pid < 0 errors).",
+      "response_hint": "JSON {bid: number} or 304",
+      "stability": "core",
+      "agent_relevance": "low",
+      "group": "reports-math"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/bidToPid",
+      "handler": "handle_GET_bidToPid (server/src/routes/math.ts)",
+      "auth": "hybridAuthOptional(assignToP) + moveToBody",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid (zid)"
+        },
+        {
+          "name": "math_tick",
+          "location": "query",
+          "required": false,
+          "type": "getInt (default 0)"
+        }
+      ],
+      "description": "Returns the full mapping of base-cluster index to participant ids for a conversation (marked in source: 'TODO doesn't scale, stop sending entire mapping'); 304 if no mapping available.",
+      "response_hint": "JSON {bidToPid: pid[][]} or 304",
+      "stability": "core",
+      "agent_relevance": "low",
+      "group": "reports-math"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/collectiveStatement",
+      "handler": "handle_GET_collectiveStatement in server/src/routes/collectiveStatement.ts",
+      "auth": "none (moveToBody only)",
+      "params": [
+        {
+          "name": "report_id",
+          "location": "query",
+          "required": false,
+          "type": "handler-validated string",
+          "description": "returns all statements for the conversation, deduplicated to latest per topic"
+        },
+        {
+          "name": "statement_id",
+          "location": "query",
+          "required": false,
+          "type": "handler-validated string",
+          "description": "fetch a single stored statement; one of report_id/statement_id required"
+        }
+      ],
+      "description": "Fetches stored collective statement(s) from DynamoDB",
+      "response_hint": "JSON array or single statement object",
+      "stability": "experimental",
+      "agent_relevance": "medium",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/collectiveStatement",
+      "handler": "handle_POST_collectiveStatement in server/src/routes/collectiveStatement.ts",
+      "auth": "moveToBody, hybridAuth(assignToP); additionally requires req.p.delphiEnabled or fails Unauthorized",
+      "params": [
+        {
+          "name": "report_id",
+          "location": "body",
+          "required": true,
+          "type": "handler-validated string"
+        },
+        {
+          "name": "topic_key",
+          "location": "body",
+          "required": true,
+          "type": "handler-validated string"
+        },
+        {
+          "name": "topic_name",
+          "location": "body",
+          "required": true,
+          "type": "handler-validated string"
+        },
+        {
+          "name": "qualifying_tids",
+          "location": "body",
+          "required": false,
+          "type": "handler-read array of comment ids"
+        },
+        {
+          "name": "group_consensus",
+          "location": "body",
+          "required": false,
+          "type": "handler-read object"
+        }
+      ],
+      "description": "Generates an LLM (Claude via Anthropic SDK) first-person-plural collective statement from high-consensus comments of a topic and stores it in DynamoDB Delphi_CollectiveStatement",
+      "response_hint": "JSON with generated statement + statement key",
+      "stability": "experimental",
+      "agent_relevance": "high",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/comments",
+      "handler": "handle_GET_comments in server/src/routes/comments.ts",
+      "auth": "moveToBody, hybridAuthOptional(assignToP), resolve_pidThing('pid')",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "conversation to list comments for (resolved to internal zid)"
+        },
+        {
+          "name": "report_id",
+          "location": "query",
+          "required": false,
+          "type": "getReportIdFetchRid",
+          "description": "if given, each comment gets an includeInReport flag from report_comment_selections"
+        },
+        {
+          "name": "tids",
+          "location": "query",
+          "required": false,
+          "type": "getArrayOfInt",
+          "description": "restrict to specific comment ids"
+        },
+        {
+          "name": "moderation",
+          "location": "query",
+          "required": false,
+          "type": "getBool",
+          "description": "include moderation fields/view (owner/moderator listing)"
+        },
+        {
+          "name": "mod",
+          "location": "query",
+          "required": false,
+          "type": "getInt",
+          "description": "filter by exact moderation status (-1 rejected, 0 unmoderated, 1 accepted)"
+        },
+        {
+          "name": "modIn",
+          "location": "query",
+          "required": false,
+          "type": "getBool",
+          "description": "true = comments participant-visible under current strict-mod setting, false = invisible ones"
+        },
+        {
+          "name": "mod_gt",
+          "location": "query",
+          "required": false,
+          "type": "getInt",
+          "description": "filter comments with mod greater than this value"
+        },
+        {
+          "name": "include_voting_patterns",
+          "location": "query",
+          "required": false,
+          "type": "getBool (default false)",
+          "description": "include agree/disagree/pass counts per comment"
+        },
+        {
+          "name": "limit",
+          "location": "query",
+          "required": false,
+          "type": "getInt",
+          "description": "enables paginated response format; default 50, max 500"
+        },
+        {
+          "name": "offset",
+          "location": "query",
+          "required": false,
+          "type": "getInt",
+          "description": "pagination offset (only with limit)"
+        }
+      ],
+      "description": "List a conversation's comments; legacy bare-array response, or {comments, pagination} wrapper when limit is passed (zid stripped, conversation_id added).",
+      "response_hint": "JSON array of comment objects (tid, txt, created, mod, is_meta, ...); or {comments: [...], pagination: {limit, offset, total, ...}} when limit given",
+      "stability": "core",
+      "agent_relevance": "high",
+      "group": "comments-votes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/comments",
+      "handler": "handle_POST_comments in server/src/routes/comments.ts",
+      "auth": "hybridAuthOptional(assignToP), ensureParticipant({createIfMissing:true, issueJWT:true}), attachAuthToken()",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "conversation to post into"
+        },
+        {
+          "name": "txt",
+          "location": "body",
+          "required": true,
+          "type": "getStringLimitLength(1,997)",
+          "description": "the statement text (max 997 chars); duplicates within a conversation are rejected 409"
+        },
+        {
+          "name": "xid",
+          "location": "body",
+          "required": false,
+          "type": "getStringLimitLength(1,999)",
+          "description": "external identity id for SSO participants (processed before ensureParticipant)"
+        },
+        {
+          "name": "vote",
+          "location": "body",
+          "required": false,
+          "type": "getIntInRange(-1,1)",
+          "description": "auto-vote on own comment (-1 agree, 0 pass, 1 disagree); seed comments default to 0 if omitted"
+        },
+        {
+          "name": "is_seed",
+          "location": "body",
+          "required": false,
+          "type": "getBool",
+          "description": "mark as seed statement; auto-approved regardless of moderation settings"
+        }
+      ],
+      "description": "Submit a new comment/statement; creates the participant if missing, runs profanity/toxicity moderation (pro conversations), detects language, optionally records an initial vote, notifies moderators.",
+      "response_hint": "JSON {tid, currentPid} (+ auth token via middleware); 409 polis_err_post_comment_duplicate, 403 polis_err_conversation_is_closed",
+      "stability": "core",
+      "agent_relevance": "high",
+      "group": "comments-votes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v3/comments",
+      "handler": "handle_PUT_comments in server/src/routes/comments.ts",
+      "auth": "moveToBody, hybridAuth(assignToP); handler enforces isModerator (403 polis_err_update_comment_auth)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "conversation the comment belongs to"
+        },
+        {
+          "name": "tid",
+          "location": "body",
+          "required": true,
+          "type": "getInt",
+          "description": "comment id to moderate"
+        },
+        {
+          "name": "active",
+          "location": "body",
+          "required": true,
+          "type": "getBool",
+          "description": "whether the comment is active (shown to participants)"
+        },
+        {
+          "name": "mod",
+          "location": "body",
+          "required": true,
+          "type": "getInt",
+          "description": "moderation status (-1 rejected, 0 unmoderated, 1 accepted)"
+        },
+        {
+          "name": "is_meta",
+          "location": "body",
+          "required": true,
+          "type": "getBool",
+          "description": "flag comment as meta (excluded from opinion math)"
+        },
+        {
+          "name": "velocity",
+          "location": "body",
+          "required": true,
+          "type": "getNumberInRange(0,1)",
+          "description": "required by the validator chain but IGNORED by the handler (update touches only active/mod/is_meta)"
+        }
+      ],
+      "description": "Moderate a comment: set active, mod status, and is_meta. Moderator/owner only.",
+      "response_hint": "JSON {} on success",
+      "stability": "admin",
+      "agent_relevance": "high",
+      "group": "comments-votes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/comments-bulk",
+      "handler": "handle_POST_comments_bulk in server/src/routes/comments.ts",
+      "auth": "hybridAuth(assignToP), resolve_pidThing('pid')",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "target conversation"
+        },
+        {
+          "name": "csv",
+          "location": "body",
+          "required": true,
+          "type": "raw req.body.csv (NOT declared via need/want)",
+          "description": "CSV string with header row; columns comment_text and optional original_id; 400 polis_err_param_missing_csv if absent"
+        },
+        {
+          "name": "is_seed",
+          "location": "body",
+          "required": false,
+          "type": "getBool",
+          "description": "treat all rows as seed statements (each gets a default pass vote)"
+        },
+        {
+          "name": "xid",
+          "location": "body",
+          "required": false,
+          "type": "getStringLimitLength(1,999)",
+          "description": "external identity id"
+        }
+      ],
+      "description": "Bulk-upload seed statements from CSV; moderator-only (403 polis_err_post_comment_auth otherwise); per-row success/skip/error results; original_id stored for external vote mapping.",
+      "response_hint": "JSON {results: [{txt, status: success|skipped|error, tid?, reason?, original_id?}], currentPid}",
+      "stability": "admin",
+      "agent_relevance": "high",
+      "group": "comments-votes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/comments/translations",
+      "handler": "handle_GET_comments_translations in server/src/routes/comments.ts",
+      "auth": "hybridAuth(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "conversation the comment belongs to"
+        },
+        {
+          "name": "tid",
+          "location": "query",
+          "required": false,
+          "type": "getInt",
+          "description": "comment id — declared optional (want) but the handler dereferences it; effectively required (404/500 without it)"
+        },
+        {
+          "name": "lang",
+          "location": "query",
+          "required": false,
+          "type": "getStringLimitLength(1,10)",
+          "description": "target language code; matched on first 2 chars against stored translations; also effectively required"
+        }
+      ],
+      "description": "Fetch stored translations of a comment for a language; if none exist, translates on demand (external translate service), stores, and returns the result.",
+      "response_hint": "JSON array of comment_translations rows [{zid, tid, lang, txt, ...}]; 404 {error: 'Comment not found'}",
+      "stability": "core",
+      "agent_relevance": "medium",
+      "group": "comments-votes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/contexts",
+      "handler": "handle_GET_contexts (closure in server/src/server.ts initializePolisHelpers, ~line 493)",
+      "auth": "moveToBody, hybridAuthOptional(assignToP)",
+      "params": [],
+      "description": "List all public context names (contexts group conversations; usable as the context filter on GET /conversations).",
+      "response_hint": "200 JSON array of {name} rows ordered by name",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "conversations"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/contexts",
+      "handler": "handle_POST_contexts (closure in server/src/server.ts initializePolisHelpers, ~line 511)",
+      "auth": "hybridAuth(assignToP) — no moveToBody, param must be in JSON body",
+      "params": [
+        {
+          "name": "name",
+          "location": "body",
+          "required": true,
+          "type": "getStringLimitLength(1, 300)",
+          "description": "unique context name"
+        }
+      ],
+      "description": "Create a new public context owned by the authenticated user; fails if the name already exists.",
+      "response_hint": "200 JSON {}; 422 polis_err_post_context_exists",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "conversations"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/contributors",
+      "handler": "handle_POST_contributors in server/src/server.ts",
+      "auth": "hybridAuthOptional(assignToP)",
+      "params": [
+        {
+          "name": "agreement_version",
+          "location": "body",
+          "required": true,
+          "type": "getIntInRange(1,999999)"
+        },
+        {
+          "name": "name",
+          "location": "body",
+          "required": true,
+          "type": "getStringLimitLength(746)"
+        },
+        {
+          "name": "email",
+          "location": "body",
+          "required": true,
+          "type": "getStringLimitLength(256)"
+        },
+        {
+          "name": "github_id",
+          "location": "body",
+          "required": true,
+          "type": "getStringLimitLength(256)"
+        },
+        {
+          "name": "company_name",
+          "location": "body",
+          "required": true,
+          "type": "getStringLimitLength(746)"
+        }
+      ],
+      "description": "Records an open-source contributor-license-agreement signature and emails the team",
+      "response_hint": "empty JSON {}",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/convSubscriptions",
+      "handler": "handle_POST_convSubscriptions in server/src/routes/notify.ts",
+      "auth": "hybridAuth(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "conversation to (un)subscribe from"
+        },
+        {
+          "name": "type",
+          "location": "body",
+          "required": true,
+          "type": "getInt",
+          "description": "1 = subscribe to email notifications, 0 = unsubscribe; anything else -> 400 polis_err_bad_subscription_type"
+        },
+        {
+          "name": "email",
+          "location": "body",
+          "required": true,
+          "type": "getEmail",
+          "description": "email to store in participants_extended.subscribe_email (used even for type=0, though ignored there)"
+        }
+      ],
+      "description": "Subscribe/unsubscribe the authenticated participant to new-statement email notifications for a conversation (updates participants.subscribed and participants_extended.subscribe_email).",
+      "response_hint": "JSON object { subscribed: 0 | 1 }",
+      "stability": "core",
+      "agent_relevance": "medium",
+      "group": "metadata-invites-notifications"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/conversation/close",
+      "handler": "handle_POST_conversation_close (server/src/routes/conversations.ts)",
+      "auth": "moveToBody, hybridAuth(assignToP); handler restricts to conversation owner (polis-dev bypasses)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "resolved to zid"
+        }
+      ],
+      "description": "Close a conversation (sets is_active=false). BUG in this build: the handler never sends a success response — only error paths respond, so a successful close leaves the HTTP request hanging.",
+      "response_hint": "No response on success (request hangs / times out); 500 polis_err_closing_conversation* on error. CLI should fire-and-verify via GET /conversations",
+      "stability": "admin",
+      "agent_relevance": "high",
+      "group": "conversations"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/conversation/reopen",
+      "handler": "handle_POST_conversation_reopen (server/src/routes/conversations.ts)",
+      "auth": "moveToBody, hybridAuth(assignToP); handler restricts to conversation owner (polis-dev bypasses)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "resolved to zid"
+        }
+      ],
+      "description": "Reopen a closed conversation (sets is_active=true).",
+      "response_hint": "200 JSON {}",
+      "stability": "admin",
+      "agent_relevance": "high",
+      "group": "conversations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/conversationStats",
+      "handler": "handle_GET_conversationStats (server/src/routes/conversations.ts)",
+      "auth": "moveToBody, hybridAuthOptional(assignToP); handler requires isModerator OR a valid report_id (knowing report_id grants access)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "resolved to zid"
+        },
+        {
+          "name": "report_id",
+          "location": "query",
+          "required": false,
+          "type": "getReportIdFetchRid",
+          "description": "grants read access without moderator rights"
+        },
+        {
+          "name": "until",
+          "location": "query",
+          "required": false,
+          "type": "getInt",
+          "description": "only include comments/votes created before this ms timestamp"
+        }
+      ],
+      "description": "Participation time-series and histograms for a conversation: every vote/comment timestamp, first-vote/first-comment per participant, votes-per-participant histogram, and vote-burst histogram (10-min gap = new burst).",
+      "response_hint": "200 JSON {voteTimes, firstVoteTimes, commentTimes, firstCommentTimes, votesHistogram, burstHistogram}",
+      "stability": "admin",
+      "agent_relevance": "medium",
+      "group": "conversations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/conversationUuid",
+      "handler": "handle_GET_conversationUuid (server/src/routes/conversationUuid.ts)",
+      "auth": "moveToBody, hybridAuth(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "resolved to zid"
+        }
+      ],
+      "description": "Get-or-create a persistent UUID for the conversation (stored on the zinvites row); used to give the conversation a stable external identifier.",
+      "response_hint": "200 JSON {conversation_uuid} — NOTE: failures also return HTTP 200 with {error: string}",
+      "stability": "experimental",
+      "agent_relevance": "low",
+      "group": "conversations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/conversations",
+      "handler": "handle_GET_conversations (server/src/routes/conversations.ts)",
+      "auth": "moveToBody, hybridAuthOptional(assignToP)",
+      "params": [
+        {
+          "name": "include_all_conversations_i_am_in",
+          "location": "query",
+          "required": false,
+          "type": "getBool",
+          "description": "also include conversations the user participates in (not just site-admin/owned)"
+        },
+        {
+          "name": "is_active",
+          "location": "query",
+          "required": false,
+          "type": "getBool",
+          "description": "filter"
+        },
+        {
+          "name": "is_draft",
+          "location": "query",
+          "required": false,
+          "type": "getBool",
+          "description": "filter"
+        },
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": false,
+          "type": "getConversationIdFetchZid",
+          "description": "if given, returns that single conversation (works without login)"
+        },
+        {
+          "name": "limit",
+          "location": "query",
+          "required": false,
+          "type": "getIntInRange(1, 9999)",
+          "description": "default 999 when listing"
+        },
+        {
+          "name": "context",
+          "location": "query",
+          "required": false,
+          "type": "getStringLimitLength(1, 999)",
+          "description": "list conversations in a context; '/' lists all public root conversations"
+        },
+        {
+          "name": "xid",
+          "location": "query",
+          "required": false,
+          "type": "getStringLimitLength(1, 999)",
+          "description": "if set, each conversation's url becomes a single-use /ot/ suzinvite URL for this external id"
+        }
+      ],
+      "description": "List conversations the user owns/co-admins (optionally participates in), list by context, or fetch one conversation by conversation_id; adds conversation_id, url, is_owner, is_mod and strips zid/is_anon/is_draft/is_public.",
+      "response_hint": "200 JSON array of conversation objects (single object when conversation_id given); 403 polis_err_need_auth when neither auth, conversation_id, nor context is supplied",
+      "stability": "core",
+      "agent_relevance": "high",
+      "group": "conversations"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/conversations",
+      "handler": "handle_POST_conversations (server/src/routes/conversations.ts)",
+      "auth": "hybridAuth(assignToP) — NO moveToBody, params must be in JSON body",
+      "params": [
+        {
+          "name": "is_active",
+          "location": "body",
+          "required": false,
+          "type": "getBool",
+          "description": "default true"
+        },
+        {
+          "name": "is_draft",
+          "location": "body",
+          "required": false,
+          "type": "getBool",
+          "description": "default false"
+        },
+        {
+          "name": "is_anon",
+          "location": "body",
+          "required": false,
+          "type": "getBool",
+          "description": "default false"
+        },
+        {
+          "name": "owner_sees_participation_stats",
+          "location": "body",
+          "required": false,
+          "type": "getBool",
+          "description": "default false"
+        },
+        {
+          "name": "profanity_filter",
+          "location": "body",
+          "required": false,
+          "type": "getBool",
+          "description": "default true"
+        },
+        {
+          "name": "short_url",
+          "location": "body",
+          "required": false,
+          "type": "getBool",
+          "description": "default false; generate a 6-char zinvite instead of 12"
+        },
+        {
+          "name": "spam_filter",
+          "location": "body",
+          "required": false,
+          "type": "getBool",
+          "description": "default true"
+        },
+        {
+          "name": "strict_moderation",
+          "location": "body",
+          "required": false,
+          "type": "getBool",
+          "description": "default false"
+        },
+        {
+          "name": "context",
+          "location": "body",
+          "required": false,
+          "type": "getOptionalStringLimitLength(999)",
+          "description": "default ''; context (group) name to attach the conversation to"
+        },
+        {
+          "name": "topic",
+          "location": "body",
+          "required": false,
+          "type": "getOptionalStringLimitLength(1000)",
+          "description": "default ''"
+        },
+        {
+          "name": "description",
+          "location": "body",
+          "required": false,
+          "type": "getOptionalStringLimitLength(50000)",
+          "description": "default ''"
+        },
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": false,
+          "type": "getStringLimitLength(6, 300)",
+          "description": "default ''; claim a previously reserved conversation_id (from POST /reserve_conversation_id); 400 if already in use"
+        },
+        {
+          "name": "is_data_open",
+          "location": "body",
+          "required": false,
+          "type": "getBool",
+          "description": "default false"
+        },
+        {
+          "name": "ownerXid",
+          "location": "body",
+          "required": false,
+          "type": "getStringLimitLength(1, 999)",
+          "description": "validated but unused by the handler in this build"
+        },
+        {
+          "name": "treevite_enabled",
+          "location": "body",
+          "required": false,
+          "type": "getBool",
+          "description": "default false"
+        },
+        {
+          "name": "topics_enabled",
+          "location": "body",
+          "required": false,
+          "type": "getBool",
+          "description": "default false"
+        }
+      ],
+      "description": "Create a conversation owned by the authenticated user (org_id defaults to uid, is_public forced true, auth_needed_to_vote/write come from server DEFAULTS); registers or claims a zinvite and returns the participation URL.",
+      "response_hint": "200 JSON {url, conversation_id} (zid stripped by finishOne); 400 polis_err_conversation_id_already_in_use; 403 polis_err_add_conversation_not_enabled; 500 with Retry-After:0 on duplicate-key race",
+      "stability": "core",
+      "agent_relevance": "high",
+      "group": "conversations"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v3/conversations",
+      "handler": "handle_PUT_conversations (server/src/routes/conversations.ts)",
+      "auth": "moveToBody, hybridAuth(assignToP); handler additionally requires isModerator(zid, uid)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid + getStringLimitLength(1,1000)",
+          "description": "declared twice: resolves zid and keeps the string for URL building"
+        },
+        {
+          "name": "is_active",
+          "location": "body",
+          "required": false,
+          "type": "getBool"
+        },
+        {
+          "name": "is_anon",
+          "location": "body",
+          "required": false,
+          "type": "getBool"
+        },
+        {
+          "name": "is_draft",
+          "location": "body",
+          "required": false,
+          "type": "getBool",
+          "description": "DEFAULT false — omitted means it is actively reset to false"
+        },
+        {
+          "name": "is_data_open",
+          "location": "body",
+          "required": false,
+          "type": "getBool",
+          "description": "DEFAULT false — reset to false when omitted"
+        },
+        {
+          "name": "owner_sees_participation_stats",
+          "location": "body",
+          "required": false,
+          "type": "getBool",
+          "description": "DEFAULT false — reset to false when omitted"
+        },
+        {
+          "name": "profanity_filter",
+          "location": "body",
+          "required": false,
+          "type": "getBool"
+        },
+        {
+          "name": "short_url",
+          "location": "body",
+          "required": false,
+          "type": "getBool",
+          "description": "DEFAULT false; true regenerates the zinvite as a 6-char short id and returns 201"
+        },
+        {
+          "name": "spam_filter",
+          "location": "body",
+          "required": false,
+          "type": "getBool"
+        },
+        {
+          "name": "strict_moderation",
+          "location": "body",
+          "required": false,
+          "type": "getBool"
+        },
+        {
+          "name": "topic",
+          "location": "body",
+          "required": false,
+          "type": "getOptionalStringLimitLength(1000)"
+        },
+        {
+          "name": "description",
+          "location": "body",
+          "required": false,
+          "type": "getOptionalStringLimitLength(50000)"
+        },
+        {
+          "name": "importance_enabled",
+          "location": "body",
+          "required": false,
+          "type": "getBool"
+        },
+        {
+          "name": "vis_type",
+          "location": "body",
+          "required": false,
+          "type": "getInt"
+        },
+        {
+          "name": "help_type",
+          "location": "body",
+          "required": false,
+          "type": "getInt"
+        },
+        {
+          "name": "write_type",
+          "location": "body",
+          "required": false,
+          "type": "getInt"
+        },
+        {
+          "name": "bgcolor",
+          "location": "body",
+          "required": false,
+          "type": "getOptionalStringLimitLength(20)",
+          "description": "'default' clears to null"
+        },
+        {
+          "name": "help_color",
+          "location": "body",
+          "required": false,
+          "type": "getOptionalStringLimitLength(20)",
+          "description": "'default' clears to null"
+        },
+        {
+          "name": "help_bgcolor",
+          "location": "body",
+          "required": false,
+          "type": "getOptionalStringLimitLength(20)",
+          "description": "'default' clears to null"
+        },
+        {
+          "name": "style_btn",
+          "location": "body",
+          "required": false,
+          "type": "getOptionalStringLimitLength(500)"
+        },
+        {
+          "name": "auth_needed_to_vote",
+          "location": "body",
+          "required": false,
+          "type": "getBool",
+          "description": "validated but IGNORED by the handler (never written)"
+        },
+        {
+          "name": "auth_needed_to_write",
+          "location": "body",
+          "required": false,
+          "type": "getBool",
+          "description": "validated but IGNORED by the handler (never written)"
+        },
+        {
+          "name": "auth_opt_allow_3rdparty",
+          "location": "body",
+          "required": false,
+          "type": "getBool"
+        },
+        {
+          "name": "verifyMeta",
+          "location": "body",
+          "required": false,
+          "type": "getBool",
+          "description": "true = reject update unless every metadata question has at least one live answer"
+        },
+        {
+          "name": "send_created_email",
+          "location": "body",
+          "required": false,
+          "type": "getBool",
+          "description": "sends the 'Conversation created' email with the share link (creation email deliberately happens on PUT, not POST)"
+        },
+        {
+          "name": "context",
+          "location": "body",
+          "required": false,
+          "type": "getOptionalStringLimitLength(999)",
+          "description": "validated but not written by the handler in this build"
+        },
+        {
+          "name": "link_url",
+          "location": "body",
+          "required": false,
+          "type": "getStringLimitLength(1, 9999)"
+        },
+        {
+          "name": "subscribe_type",
+          "location": "body",
+          "required": false,
+          "type": "getInt"
+        },
+        {
+          "name": "treevite_enabled",
+          "location": "body",
+          "required": false,
+          "type": "getBool",
+          "description": "DEFAULT false — reset to false when omitted"
+        },
+        {
+          "name": "topics_enabled",
+          "location": "body",
+          "required": false,
+          "type": "getBool",
+          "description": "DEFAULT false — reset to false when omitted"
+        },
+        {
+          "name": "use_xid_whitelist",
+          "location": "body",
+          "required": false,
+          "type": "getBool"
+        },
+        {
+          "name": "xid_required",
+          "location": "body",
+          "required": false,
+          "type": "getBool"
+        }
+      ],
+      "description": "Update conversation settings (moderator-only); optionally regenerates a short zinvite and/or sends the creation email; returns the full updated conversation row with is_mod=true.",
+      "response_hint": "200 (or 201 when short_url) JSON updated conversation object; 403 polis_err_update_conversation_permission",
+      "stability": "core",
+      "agent_relevance": "high",
+      "group": "conversations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/conversations/preload",
+      "handler": "handle_GET_conversationPreloadInfo (server/src/routes/conversations.ts)",
+      "auth": "moveToBody only — public, no auth",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getStringLimitLength(1, 1000)"
+        }
+      ],
+      "description": "Public, cacheable conversation metadata used to preload the participation client: topic, description, created, link_url, parent_url, vis/write/help types, colors, style_btn, auth_opt_allow_3rdparty (auth_needed_to_vote/write hardcoded false in payload).",
+      "response_hint": "200 JSON single conversation-preload object with conversation_id echoed",
+      "stability": "core",
+      "agent_relevance": "medium",
+      "group": "conversations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/conversations/recent_activity",
+      "handler": "handle_GET_conversationsRecentActivity (server/src/routes/conversations.ts)",
+      "auth": "hybridAuth(assignToP), moveToBody; handler requires isPolisDev(uid), else 403",
+      "params": [
+        {
+          "name": "sinceUnixTimestamp",
+          "location": "query",
+          "required": false,
+          "type": "getStringLimitLength(99)",
+          "description": "seconds; default = last 7 days"
+        }
+      ],
+      "description": "Server-operator-only: raw conversations rows modified since the given time.",
+      "response_hint": "200 JSON array of raw conversations rows",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "conversations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/conversations/recently_started",
+      "handler": "handle_GET_conversationsRecentlyStarted (server/src/routes/conversations.ts)",
+      "auth": "hybridAuth(assignToP), moveToBody; handler requires isPolisDev(uid), else 403",
+      "params": [
+        {
+          "name": "sinceUnixTimestamp",
+          "location": "query",
+          "required": false,
+          "type": "getStringLimitLength(99)",
+          "description": "seconds; default = last 7 days"
+        }
+      ],
+      "description": "Server-operator-only: raw conversations rows created since the given time (unprocessed DB rows, zid included).",
+      "response_hint": "200 JSON array of raw conversations rows",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "conversations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/dataExport",
+      "handler": "handle_GET_dataExport (server/src/routes/dataExport.ts)",
+      "auth": "moveToBody, hybridAuth(assignToP) — no ownership check in the handler itself",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid + getStringLimitLength(1,1000)",
+          "description": "declared twice: resolves zid and keeps the string"
+        },
+        {
+          "name": "format",
+          "location": "query",
+          "required": false,
+          "type": "getStringLimitLength(1, 100)",
+          "description": "export format passed to the math worker (e.g. csv)"
+        },
+        {
+          "name": "unixTimestamp",
+          "location": "query",
+          "required": false,
+          "type": "getStringLimitLength(99)",
+          "description": "SECONDS; multiplied by 1000 server-side; NaN if omitted"
+        }
+      ],
+      "description": "Queue an asynchronous data-export job (votes/comments dump) for the conversation via the math worker; the result is uploaded to S3 and the requesting user is notified by email.",
+      "response_hint": "200 JSON {} immediately (job queued); 500 polis_err_data_export123*",
+      "stability": "admin",
+      "agent_relevance": "high",
+      "group": "conversations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/dataExport/results",
+      "handler": "handle_GET_dataExport_results (server/src/routes/dataExport.ts)",
+      "auth": "moveToBody, hybridAuth(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid + getStringLimitLength(1,1000)",
+          "description": "required by validators but UNUSED by the handler"
+        },
+        {
+          "name": "filename",
+          "location": "query",
+          "required": false,
+          "type": "getStringLimitLength(1, 1000)",
+          "description": "S3 object name under {mathEnv}/ in bucket polis-datadump; effectively required"
+        }
+      ],
+      "description": "Redirect to a pre-signed S3 URL (7-day expiry) for a previously generated export file in the polis-datadump bucket.",
+      "response_hint": "302 redirect to signed S3 URL",
+      "stability": "admin",
+      "agent_relevance": "high",
+      "group": "conversations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/delphi",
+      "handler": "handle_GET_delphi (server/src/routes/delphi.ts)",
+      "auth": "none/public (moveToBody only)",
+      "params": [
+        {
+          "name": "report_id",
+          "location": "query",
+          "required": true,
+          "type": "raw req.query string, validated in handler (400 if missing); resolved to zid via getZidFromReport"
+        }
+      ],
+      "description": "Returns LLM-generated topic names for a conversation from DynamoDB table Delphi_CommentClustersLLMTopicNames, grouped into 'runs' keyed by model name + created date; also probes Delphi_NarrativeReports for the current job UUID.",
+      "response_hint": "JSON {status, report_id, runs: {\"model_YYYY-MM-DD\": {...}}}; {runs:{}} if none",
+      "stability": "experimental",
+      "agent_relevance": "medium",
+      "group": "reports-math"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/delphi/batchReports",
+      "handler": "handle_POST_delphi_batch_reports (server/src/routes/delphi/batchReports.ts), wrapped in inline try/catch in app.ts",
+      "auth": "moveToBody + hybridAuth(assignToP); handler additionally requires JWT claim delphi_enabled",
+      "params": [
+        {
+          "name": "report_id",
+          "location": "body",
+          "required": true,
+          "type": "string (error JSON if missing)"
+        },
+        {
+          "name": "model",
+          "location": "body",
+          "required": false,
+          "type": "string; defaults to ANTHROPIC_MODEL env var — error if neither is set"
+        },
+        {
+          "name": "max_batch_size",
+          "location": "body",
+          "required": false,
+          "type": "number (default 20)"
+        },
+        {
+          "name": "no_cache",
+          "location": "body",
+          "required": false,
+          "type": "boolean (default false)"
+        },
+        {
+          "name": "include_moderation",
+          "location": "body",
+          "required": false,
+          "type": "boolean"
+        }
+      ],
+      "description": "Enqueues a CREATE_NARRATIVE_BATCH job in the DynamoDB Delphi_JobQueue to generate batch narrative reports via the Anthropic batch API; job_id is 'batch_report_<report_id>_<ts>_<rand>'.",
+      "response_hint": "JSON with job_id / status; errors often HTTP 200 {status:'error'}",
+      "stability": "experimental",
+      "agent_relevance": "medium",
+      "group": "reports-math"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/delphi/jobs",
+      "handler": "handle_POST_delphi_jobs (server/src/routes/delphi/jobs.ts), wrapped in inline try/catch in app.ts",
+      "auth": "moveToBody + hybridAuth(assignToP); handler additionally requires JWT claim delphi_enabled (throws 'Unauthorized' otherwise)",
+      "params": [
+        {
+          "name": "report_id",
+          "location": "body",
+          "required": false,
+          "type": "string; one of report_id or conversation_id is required (400 if both missing)"
+        },
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": false,
+          "type": "string; one of report_id or conversation_id is required"
+        },
+        {
+          "name": "job_type",
+          "location": "body",
+          "required": false,
+          "type": "string (default 'FULL_PIPELINE')"
+        },
+        {
+          "name": "priority",
+          "location": "body",
+          "required": false,
+          "type": "int (default 50)"
+        },
+        {
+          "name": "include_moderation",
+          "location": "body",
+          "required": false,
+          "type": "boolean (default false)",
+          "description": "Ignore comments with failing moderation score"
+        }
+      ],
+      "description": "Creates a Delphi ML job (UMAP/topic-modeling/narrative pipeline) by writing a PENDING item into the DynamoDB Delphi_JobQueue table (uuid job_id, 4h timeout, max 3 retries). Per source comment, FULL_PIPELINE jobs ignore job_config except include_moderation; the narrative model comes from the ANTHROPIC_MODEL env var.",
+      "response_hint": "JSON with created job info incl. job_id; errors may come back as HTTP 200 {status:'error'} or 400",
+      "stability": "experimental",
+      "agent_relevance": "high",
+      "group": "reports-math"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/delphi/logs",
+      "handler": "handle_GET_delphi_job_logs (server/src/routes/delphi.ts)",
+      "auth": "none/public (moveToBody only)",
+      "params": [
+        {
+          "name": "job_id",
+          "location": "query",
+          "required": true,
+          "type": "raw req.query string — NOT validated: missing job_id causes a TypeError (job_id.slice) and a 500"
+        }
+      ],
+      "description": "Fetches CloudWatch log events for a Delphi job (filter pattern '[DELPHI JOB <first 8 chars of job_id>') restricted to the last 3 hours, from the log group in Config.awsLogGroupName.",
+      "response_hint": "JSON array of CloudWatch log events; 500 {status:'error'} on failure",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "reports-math"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/delphi/reports",
+      "handler": "handle_GET_delphi_reports (server/src/routes/delphi/reports.ts), wrapped in inline try/catch in app.ts",
+      "auth": "none/public (moveToBody only)",
+      "params": [
+        {
+          "name": "report_id",
+          "location": "query",
+          "required": true,
+          "type": "raw req.query string; validated to resolve to a zid, then used as the DynamoDB GSI partition key"
+        },
+        {
+          "name": "section",
+          "location": "query",
+          "required": false,
+          "type": "raw req.query string",
+          "description": "Filter to a specific narrative section"
+        },
+        {
+          "name": "topic_key",
+          "location": "query",
+          "required": false,
+          "type": "raw req.query string",
+          "description": "Filter to a specific topic's report"
+        },
+        {
+          "name": "job_id",
+          "location": "query",
+          "required": false,
+          "type": "raw req.query string",
+          "description": "Fetch sections from a specific Delphi job run"
+        }
+      ],
+      "description": "Retrieves LLM-generated narrative report sections for a report from the DynamoDB Delphi_NarrativeReports table (GSI ReportIdTimestampIndex), optionally filtered by section, topic_key, or job run.",
+      "response_hint": "JSON {status, ...sections}; error conditions returned as HTTP 200 {status:'error', message}",
+      "stability": "experimental",
+      "agent_relevance": "high",
+      "group": "reports-math"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/delphi/visualizations",
+      "handler": "handle_GET_delphi_visualizations (server/src/routes/delphi/visualizations.ts), wrapped in inline try/catch in app.ts",
+      "auth": "none/public (moveToBody only)",
+      "params": [
+        {
+          "name": "report_id",
+          "location": "query",
+          "required": true,
+          "type": "raw req.query string"
+        },
+        {
+          "name": "job_id",
+          "location": "query",
+          "required": false,
+          "type": "raw req.query string",
+          "description": "Specific job run's visualization data"
+        }
+      ],
+      "description": "Retrieves Delphi-generated visualization data (topic/cluster visualizations produced by the ML pipeline) for a report from DynamoDB.",
+      "response_hint": "JSON {status, report_id, ...visualization data}",
+      "stability": "experimental",
+      "agent_relevance": "medium",
+      "group": "reports-math"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/domainWhitelist",
+      "handler": "handle_GET_domainWhitelist in server/src/utils/domain.ts",
+      "auth": "moveToBody, hybridAuth(assignToP)",
+      "params": [],
+      "description": "Fetch the embed domain whitelist (comma-separated string) for the authenticated user's site_id.",
+      "response_hint": "JSON object { domain_whitelist: string } (empty string if unset)",
+      "stability": "admin",
+      "agent_relevance": "medium",
+      "group": "metadata-invites-notifications"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/domainWhitelist",
+      "handler": "handle_POST_domainWhitelist in server/src/utils/domain.ts",
+      "auth": "hybridAuth(assignToP)",
+      "params": [
+        {
+          "name": "domain_whitelist",
+          "location": "body",
+          "required": true,
+          "type": "getOptionalStringLimitLength(999)",
+          "description": "comma-separated allowed embed domains; declared with need() but has default '' so effectively optional-with-empty-default"
+        }
+      ],
+      "description": "Insert or update the embed domain whitelist for the authenticated user's site_id (controls which third-party domains may embed conversations).",
+      "response_hint": "JSON object { domain_whitelist: string } echoing the new value",
+      "stability": "admin",
+      "agent_relevance": "medium",
+      "group": "metadata-invites-notifications"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/dummyButton",
+      "handler": "handle_GET_dummyButton in server/src/server.ts",
+      "auth": "hybridAuthOptional",
+      "params": [
+        {
+          "name": "button",
+          "location": "query",
+          "required": true,
+          "type": "getStringLimitLength(1,999)",
+          "description": "label of the placeholder feature button that was clicked"
+        }
+      ],
+      "description": "Feature-interest tracker: emails the admin team that a dummy button was clicked, returns empty 200",
+      "response_hint": "empty 200",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/einvites",
+      "handler": "handle_GET_einvites in server/src/invites/routes.ts",
+      "auth": "none/public (moveToBody)",
+      "params": [
+        {
+          "name": "einvite",
+          "location": "query",
+          "required": true,
+          "type": "getStringLimitLength(1,100)",
+          "description": "einvite token from the emailed link"
+        }
+      ],
+      "description": "Look up an einvite token and return its row (used by the registration page to prefill the email); 500 polis_err_missing_einvite if not found.",
+      "response_hint": "JSON object: the einvites row (email, einvite, created)",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "metadata-invites-notifications"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/einvites",
+      "handler": "handle_POST_einvites in server/src/invites/routes.ts (delegates to doSendEinvite in server/src/invites/einvites.ts)",
+      "auth": "none/public",
+      "params": [
+        {
+          "name": "email",
+          "location": "body",
+          "required": true,
+          "type": "getEmail",
+          "description": "address to send the account-creation invite to"
+        }
+      ],
+      "description": "Generate a 30-char einvite token, store it in the einvites table, and email an account-signup invite link to the address (legacy invite-gated registration flow, not conversation invites).",
+      "response_hint": "JSON {} on success",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "metadata-invites-notifications"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/joinWithInvite",
+      "handler": "handle_POST_joinWithInvite in server/src/auth/routes.ts",
+      "auth": "hybridAuthOptional(assignToP) — anonymous allowed; creates an anonymous user and issues an anonymous JWT when unauthenticated",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "Conversation to join; resolved to zid"
+        },
+        {
+          "name": "suzinvite",
+          "location": "body",
+          "required": false,
+          "type": "getOptionalStringLimitLength(32)",
+          "description": "Single-use invite token; consumed (deleted) on successful join"
+        },
+        {
+          "name": "answers",
+          "location": "body",
+          "required": false,
+          "type": "getArrayOfInt (default [])",
+          "description": "pmaid choices for required metadata questions"
+        },
+        {
+          "name": "referrer",
+          "location": "body",
+          "required": false,
+          "type": "getStringLimitLength(9999)",
+          "description": "Referrer URL stored with the participant"
+        },
+        {
+          "name": "parent_url",
+          "location": "body",
+          "required": false,
+          "type": "getStringLimitLength(9999)",
+          "description": "Embedding page URL stored with the participant"
+        }
+      ],
+      "description": "Joins a conversation via zid or single-use suzinvite, creating an anonymous user if there is no existing auth; enforces xid allow-list / xid_required conversation settings; returns pid/uid plus a fresh anonymous JWT for new anonymous users.",
+      "response_hint": "JSON {pid, uid, token?, isAnonymous?}; 403 on polis_err_need_full_user / polis_err_xid_required / polis_err_xid_not_allowed",
+      "stability": "core",
+      "agent_relevance": "high",
+      "group": "participants-users-auth"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/locations",
+      "handler": "handle_GET_locations in server/src/server.ts",
+      "auth": "hybridAuthOptional(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid"
+        },
+        {
+          "name": "gid",
+          "location": "query",
+          "required": true,
+          "type": "getInt",
+          "description": "opinion-group id"
+        }
+      ],
+      "description": "Returns lat/lng markers for participants in a given opinion group (participant_locations table; Facebook-era geolocation feature)",
+      "response_hint": "JSON array of {lat,lng,n}",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/math/correlationMatrix",
+      "handler": "handle_GET_math_correlationMatrix (server/src/routes/math.ts)",
+      "auth": "none/public (moveToBody; knowing report_id acts as the capability)",
+      "params": [
+        {
+          "name": "report_id",
+          "location": "query",
+          "required": true,
+          "type": "getReportIdFetchRid (assigned as rid)",
+          "description": "Report whose correlation matrix to fetch"
+        },
+        {
+          "name": "math_tick",
+          "location": "query",
+          "required": false,
+          "type": "getInt (default -1)",
+          "description": "Minimum math_tick of acceptable cached result"
+        }
+      ],
+      "description": "Fetches the comment correlation matrix for a report from math_report_correlationmatrix; if absent, enqueues a 'generate_report_data' worker task and returns 202 pending; returns 202 'polis_report_needs_comment_selection' if no comments were selected for the report yet.",
+      "response_hint": "JSON matrix data (rows[0].data), or 202 {status:'pending'} / {status:'polis_report_needs_comment_selection'}",
+      "stability": "core",
+      "agent_relevance": "medium",
+      "group": "reports-math"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/math/pca",
+      "handler": "handle_GET_math_pca (server/src/routes/math.ts)",
+      "auth": "none/public (no middleware at all)",
+      "params": [],
+      "description": "Dead endpoint: clients were migrated off this path; unconditionally returns HTTP 304 with empty body.",
+      "response_hint": "Always HTTP 304, empty body",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "reports-math"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/math/pca2",
+      "handler": "handle_GET_math_pca2 (server/src/routes/math.ts)",
+      "auth": "none/public (moveToBody, redirectIfHasZidButNoConversationId; no auth middleware)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid (assigned as zid)",
+          "description": "Conversation to fetch math results for"
+        },
+        {
+          "name": "math_tick",
+          "location": "query",
+          "required": false,
+          "type": "getInt",
+          "description": "Return results only if newer than this tick; mutually exclusive with If-None-Match header; defaults to -1 (always return)"
+        },
+        {
+          "name": "keys",
+          "location": "query",
+          "required": false,
+          "type": "getArrayOfString",
+          "description": "Filter response to only these top-level keys of the math object (e.g. group-clusters, consensus, repness)"
+        },
+        {
+          "name": "If-None-Match",
+          "location": "header",
+          "required": false,
+          "type": "getStringLimitLength(1000)",
+          "description": "ETag conditional fetch; parsed to a math_tick; 400 if combined with math_tick param"
+        }
+      ],
+      "description": "Primary math-results endpoint: returns the full PCA/clustering payload for a conversation (pca, base-clusters, group-clusters, consensus, repness, votes-base, math_tick), served as pre-gzipped JSON with an ETag of the math_tick; 304 when nothing newer exists.",
+      "response_hint": "JSON object (gzip Content-Encoding unless keys filter given); Etag header = math_tick; 304 if unchanged/no results",
+      "stability": "core",
+      "agent_relevance": "high",
+      "group": "reports-math"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/mathUpdate",
+      "handler": "handle_POST_math_update (server/src/routes/math.ts)",
+      "auth": "hybridAuth(assignToP) + moveToBody; handler additionally requires isModerator(zid, uid)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid (assigned as zid)"
+        },
+        {
+          "name": "math_update_type",
+          "location": "body",
+          "required": true,
+          "type": "getStringLimitLength(1, 32)",
+          "description": "Expected values: 'recompute' or 'update'"
+        }
+      ],
+      "description": "Moderator-only trigger: enqueues an 'update_math' worker task so the math (Clojure) service recomputes or updates clustering for the conversation.",
+      "response_hint": "200 {} on success; 500 'handle_POST_math_update_permission' if not moderator",
+      "stability": "admin",
+      "agent_relevance": "medium",
+      "group": "reports-math"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/metadata",
+      "handler": "handle_GET_metadata in server/src/routes/metadata.ts",
+      "auth": "moveToBody, hybridAuth(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "conversation whose full metadata structure to fetch"
+        },
+        {
+          "name": "zinvite",
+          "location": "query",
+          "required": false,
+          "type": "getOptionalStringLimitLength(300)",
+          "description": "conversation invite code; validated if provided"
+        },
+        {
+          "name": "suzinvite",
+          "location": "query",
+          "required": false,
+          "type": "getOptionalStringLimitLength(32)",
+          "description": "single-use invite code; validated if provided"
+        }
+      ],
+      "description": "Fetch the combined metadata structure for a conversation: questions, answer options, and which participants chose each answer, as nested maps.",
+      "response_hint": "JSON { kvp: {pmqid: {pmaid: [pid]}}, keys: {pmqid: key}, values: {pmaid: value} }; {} if no questions",
+      "stability": "admin",
+      "agent_relevance": "low",
+      "group": "metadata-invites-notifications"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/metadata/answers",
+      "handler": "handle_GET_metadata_answers in server/src/routes/metadata.ts",
+      "auth": "moveToBody, hybridAuthOptional(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "conversation whose answers to list"
+        },
+        {
+          "name": "pmqid",
+          "location": "query",
+          "required": false,
+          "type": "getInt",
+          "description": "restrict to a single metadata question"
+        },
+        {
+          "name": "suzinvite",
+          "location": "query",
+          "required": false,
+          "type": "getOptionalStringLimitLength(32)",
+          "description": "single-use invite code; validated before returning data if provided"
+        },
+        {
+          "name": "zinvite",
+          "location": "query",
+          "required": false,
+          "type": "getOptionalStringLimitLength(300)",
+          "description": "conversation invite code; validated before returning data if provided"
+        }
+      ],
+      "description": "List alive participant-metadata answer options for a conversation (each row returned with is_exclusive=true), optionally filtered by question.",
+      "response_hint": "JSON array of answer rows (pmaid, pmqid, zid, value, is_exclusive)",
+      "stability": "core",
+      "agent_relevance": "medium",
+      "group": "metadata-invites-notifications"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/metadata/answers",
+      "handler": "handle_POST_metadata_answers in server/src/routes/metadata.ts",
+      "auth": "moveToBody, hybridAuth(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "conversation the question belongs to"
+        },
+        {
+          "name": "pmqid",
+          "location": "body",
+          "required": true,
+          "type": "getInt",
+          "description": "metadata question id to attach this answer option to"
+        },
+        {
+          "name": "value",
+          "location": "body",
+          "required": true,
+          "type": "getOptionalStringLimitLength(999)",
+          "description": "answer option text"
+        }
+      ],
+      "description": "Add an answer option to a metadata question (or revive a previously soft-deleted identical one); conversation-owner-only (checked in handler).",
+      "response_hint": "JSON object: the created/revived answer row (pmaid, pmqid, zid, value, ...)",
+      "stability": "admin",
+      "agent_relevance": "medium",
+      "group": "metadata-invites-notifications"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v3/metadata/answers/:pmaid",
+      "handler": "handle_DELETE_metadata_answers in server/src/routes/metadata.ts",
+      "auth": "moveToBody, hybridAuth(assignToP)",
+      "params": [
+        {
+          "name": "pmaid",
+          "location": "path",
+          "required": true,
+          "type": "getInt",
+          "description": "participant-metadata answer id; zid looked up from it, then owner check"
+        }
+      ],
+      "description": "Soft-delete (alive=FALSE) a single participant-metadata answer; conversation-owner-only (checked in handler).",
+      "response_hint": "JSON { success: true }",
+      "stability": "admin",
+      "agent_relevance": "medium",
+      "group": "metadata-invites-notifications"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/metadata/choices",
+      "handler": "handle_GET_metadata_choices in server/src/routes/metadata.ts",
+      "auth": "moveToBody, hybridAuth(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "conversation whose participant choices to list"
+        }
+      ],
+      "description": "List alive participant_metadata_choices rows (which participant picked which answer) for a conversation.",
+      "response_hint": "JSON array of choice rows (zid, pmqid, pmaid, pid, alive)",
+      "stability": "admin",
+      "agent_relevance": "low",
+      "group": "metadata-invites-notifications"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/metadata/questions",
+      "handler": "handle_GET_metadata_questions in server/src/routes/metadata.ts",
+      "auth": "moveToBody, hybridAuthOptional(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "conversation whose metadata questions to list"
+        },
+        {
+          "name": "suzinvite",
+          "location": "query",
+          "required": false,
+          "type": "getOptionalStringLimitLength(32)",
+          "description": "single-use invite code; if provided, validated before returning data"
+        },
+        {
+          "name": "zinvite",
+          "location": "query",
+          "required": false,
+          "type": "getOptionalStringLimitLength(300)",
+          "description": "conversation invite code; if provided, validated before returning data"
+        }
+      ],
+      "description": "List alive participant-metadata questions for a conversation (each row returned with required=true); access gated by zinvite/suzinvite validity when supplied.",
+      "response_hint": "JSON array of question rows (pmqid, zid, key, required, ...)",
+      "stability": "core",
+      "agent_relevance": "medium",
+      "group": "metadata-invites-notifications"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/metadata/questions",
+      "handler": "handle_POST_metadata_questions in server/src/routes/metadata.ts",
+      "auth": "moveToBody, hybridAuth(assignToP)",
+      "params": [
+        {
+          "name": "key",
+          "location": "body",
+          "required": true,
+          "type": "getOptionalStringLimitLength(999)",
+          "description": "question text/key (e.g. a demographic question)"
+        },
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "conversation to attach the question to"
+        }
+      ],
+      "description": "Create a participant-metadata question on a conversation; conversation-owner-only (checked in handler).",
+      "response_hint": "JSON object: the created question row (pmqid, zid, key, ...)",
+      "stability": "admin",
+      "agent_relevance": "medium",
+      "group": "metadata-invites-notifications"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v3/metadata/questions/:pmqid",
+      "handler": "handle_DELETE_metadata_questions in server/src/routes/metadata.ts",
+      "auth": "moveToBody, hybridAuth(assignToP)",
+      "params": [
+        {
+          "name": "pmqid",
+          "location": "path",
+          "required": true,
+          "type": "getInt",
+          "description": "participant-metadata question id; zid looked up from it, then owner check"
+        }
+      ],
+      "description": "Soft-delete (alive=FALSE) a participant-metadata question and all its answers; conversation-owner-only (checked in handler).",
+      "response_hint": "JSON { success: true }",
+      "stability": "admin",
+      "agent_relevance": "medium",
+      "group": "metadata-invites-notifications"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/metrics",
+      "handler": "handle_POST_metrics in server/src/server.ts",
+      "auth": "hybridAuthOptional(assignToP)",
+      "params": [
+        {
+          "name": "types",
+          "location": "body",
+          "required": true,
+          "type": "getArrayOfInt"
+        },
+        {
+          "name": "times",
+          "location": "body",
+          "required": true,
+          "type": "getArrayOfInt"
+        },
+        {
+          "name": "durs",
+          "location": "body",
+          "required": true,
+          "type": "getArrayOfInt"
+        },
+        {
+          "name": "clientTimestamp",
+          "location": "body",
+          "required": true,
+          "type": "getInt"
+        }
+      ],
+      "description": "Client-side telemetry ingestion; hard-disabled in code (enabled=false) so it always returns empty 200 without writing",
+      "response_hint": "empty JSON {}",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/nextComment",
+      "handler": "handle_GET_nextComment in server/src/routes/comments.ts",
+      "auth": "timeout(15000), moveToBody, hybridAuthOptional(assignToP), resolve_pidThing('not_voted_by_pid'), ensureParticipantOptional({createIfMissing:false, issueJWT:false}), haltOnTimeout",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "conversation to draw the next unvoted comment from"
+        },
+        {
+          "name": "not_voted_by_pid",
+          "location": "query",
+          "required": false,
+          "type": "resolve_pidThing",
+          "description": "participant id to exclude already-voted comments for; normally resolved from auth (callers can pass 'mypid')"
+        },
+        {
+          "name": "without",
+          "location": "query",
+          "required": false,
+          "type": "getArrayOfInt",
+          "description": "comment ids to exclude (e.g. currently displayed)"
+        },
+        {
+          "name": "lang",
+          "location": "query",
+          "required": false,
+          "type": "getStringLimitLength(1,10)",
+          "description": "preferred language; translation attached if available"
+        }
+      ],
+      "description": "Get the next comment for the participant to vote on (priority-weighted, excludes already-voted and 'without' ids); 15s timeout guard.",
+      "response_hint": "JSON comment object {tid, txt, created, remaining, total, translations?, currentPid} or {currentPid}/{} when no comments remain",
+      "stability": "core",
+      "agent_relevance": "high",
+      "group": "comments-votes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/notifications/subscribe",
+      "handler": "handle_GET_notifications_subscribe in server/src/routes/notify.ts",
+      "auth": "none/public (moveToBody; authenticated by HMAC signature param, not middleware)",
+      "params": [
+        {
+          "name": "signature",
+          "location": "query",
+          "required": true,
+          "type": "getStringLimitLength(10,999)",
+          "description": "HMAC-SHA1 of path+sorted params; secret is hardcoded in notify.ts"
+        },
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid + getStringLimitLength(1,1000)",
+          "description": "declared twice: one validator resolves zid, the other preserves the string for URL building; client passes it once"
+        },
+        {
+          "name": "email",
+          "location": "query",
+          "required": true,
+          "type": "getEmail",
+          "description": "email address of the participant to subscribe"
+        }
+      ],
+      "description": "Email-link target that sets participants.subscribed=1 for the user with that email in the conversation; verifies HMAC signature, responds with an HTML confirmation page.",
+      "response_hint": "HTML page ('Subscribed!' with an unsubscribe link)",
+      "stability": "core",
+      "agent_relevance": "low",
+      "group": "metadata-invites-notifications"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/notifications/unsubscribe",
+      "handler": "handle_GET_notifications_unsubscribe in server/src/routes/notify.ts",
+      "auth": "none/public (moveToBody; authenticated by HMAC signature param, not middleware)",
+      "params": [
+        {
+          "name": "signature",
+          "location": "query",
+          "required": true,
+          "type": "getStringLimitLength(10,999)",
+          "description": "HMAC-SHA1 of path+sorted params; secret hardcoded in notify.ts"
+        },
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid + getStringLimitLength(1,1000)",
+          "description": "declared twice (zid resolution + string preserved); client passes once"
+        },
+        {
+          "name": "email",
+          "location": "query",
+          "required": true,
+          "type": "getEmail",
+          "description": "email address of the participant to unsubscribe"
+        }
+      ],
+      "description": "Email-link target that sets participants.subscribed=0 for the user with that email; verifies HMAC signature, responds with an HTML confirmation page.",
+      "response_hint": "HTML page ('Unsubscribed.' with a re-subscribe link)",
+      "stability": "core",
+      "agent_relevance": "low",
+      "group": "metadata-invites-notifications"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/notifyTeam",
+      "handler": "handle_POST_notifyTeam in server/src/routes/notify.ts",
+      "auth": "none (shared-secret body params webserver_username/webserver_pass checked against Config)",
+      "params": [
+        {
+          "name": "webserver_username",
+          "location": "body",
+          "required": true,
+          "type": "getStringLimitLength(1,999)"
+        },
+        {
+          "name": "webserver_pass",
+          "location": "body",
+          "required": true,
+          "type": "getStringLimitLength(1,999)"
+        },
+        {
+          "name": "subject",
+          "location": "body",
+          "required": true,
+          "type": "getStringLimitLength(9999)"
+        },
+        {
+          "name": "body",
+          "location": "body",
+          "required": true,
+          "type": "getStringLimitLength(99999)"
+        }
+      ],
+      "description": "Server-internal hook (used by sibling services) to email the admin team",
+      "response_hint": "empty JSON {}",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/participants",
+      "handler": "handle_GET_participants in server/src/routes/participation.ts",
+      "auth": "moveToBody + hybridAuth(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "Conversation whose participant record to fetch"
+        }
+      ],
+      "description": "Returns the calling user's own participant row for the conversation (SELECT * FROM participants WHERE uid AND zid), or null if the caller has not joined.",
+      "response_hint": "JSON participant row or null",
+      "stability": "core",
+      "agent_relevance": "medium",
+      "group": "participants-users-auth"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/participants",
+      "handler": "handle_POST_participants in server/src/routes/participation.ts",
+      "auth": "hybridAuth(assignToP) — requires Authorization: Bearer <JWT> (OIDC, standard-user, anonymous, or XID JWT)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "Conversation to join; resolved to internal zid"
+        },
+        {
+          "name": "answers",
+          "location": "body",
+          "required": false,
+          "type": "getArrayOfInt (default [])",
+          "description": "Array of pmaid choices answering required participant-metadata questions"
+        },
+        {
+          "name": "parent_url",
+          "location": "body",
+          "required": false,
+          "type": "getStringLimitLength(9999)",
+          "description": "Embedding page URL, stored as extended participant info"
+        },
+        {
+          "name": "referrer",
+          "location": "body",
+          "required": false,
+          "type": "getStringLimitLength(9999)",
+          "description": "Referrer URL, stored as extended participant info"
+        }
+      ],
+      "description": "Joins the authenticated user to a conversation as a participant (idempotent: returns the existing participant row if already joined); rejects with 400 if required metadata questions are unanswered.",
+      "response_hint": "JSON participant row {pid, uid, zid, created, mod, vote_count, ...}",
+      "stability": "core",
+      "agent_relevance": "high",
+      "group": "participants-users-auth"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v3/participants_extended",
+      "handler": "handle_PUT_participants_extended in server/src/routes/participation.ts",
+      "auth": "hybridAuth(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "Conversation whose extended participant row to update"
+        },
+        {
+          "name": "show_translation_activated",
+          "location": "body",
+          "required": false,
+          "type": "getBool",
+          "description": "Currently the only updatable field: whether the participant enabled comment translation"
+        }
+      ],
+      "description": "Updates the caller's participants_extended row for a conversation (currently only the show_translation_activated flag).",
+      "response_hint": "JSON raw update result",
+      "stability": "core",
+      "agent_relevance": "low",
+      "group": "participants-users-auth"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/participation",
+      "handler": "handle_GET_participation in server/src/routes/participation.ts",
+      "auth": "moveToBody + hybridAuth(assignToP); handler additionally enforces conversation ownership (403 polis_err_get_participation_auth)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "Conversation to summarize"
+        },
+        {
+          "name": "strict",
+          "location": "query",
+          "required": false,
+          "type": "getBool",
+          "description": "If true, 409s when participants are missing xid mappings"
+        }
+      ],
+      "description": "Owner-only participation stats: per-participant vote and comment counts, keyed by pid, or re-keyed by xid when xid records exist.",
+      "response_hint": "JSON map {pid_or_xid: {votes: n, comments: n}}",
+      "stability": "admin",
+      "agent_relevance": "high",
+      "group": "participants-users-auth"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/participation/topicPrioritize",
+      "handler": "handle_GET_participation_topicPrioritize in server/src/routes/participation/topicPrioritize.ts",
+      "auth": "none (public) — moveToBody only, no auth middleware",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid (also kept as string via second need)",
+          "description": "Conversation to check for report/Delphi availability"
+        }
+      ],
+      "description": "Lightweight public check used by client-participation-alpha: reports whether the conversation has a report (latest report_id) and, optimistically, Delphi data for the topic-prioritization feature.",
+      "response_hint": "JSON {status, conversation_id, has_report, has_delphi_data, report_id?, report_created?}",
+      "stability": "experimental",
+      "agent_relevance": "low",
+      "group": "participants-users-auth"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/participationInit",
+      "handler": "handle_GET_participationInit in server/src/routes/participation.ts",
+      "auth": "hybridAuthOptional(assignToP) + denyIfNotFromWhitelistedDomain + ensureParticipantOptional({createIfMissing:false, issueJWT:true})",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": false,
+          "type": "getConversationIdFetchZid (also kept as string via second want)",
+          "description": "Conversation to bootstrap; without it only the user object is returned"
+        },
+        {
+          "name": "ptptoiLimit",
+          "location": "query",
+          "required": false,
+          "type": "getInt",
+          "description": "Max participants-of-interest in the famous block (default 30)"
+        },
+        {
+          "name": "includePCA",
+          "location": "query",
+          "required": false,
+          "type": "getBool",
+          "description": "Set false to omit PCA math payload"
+        },
+        {
+          "name": "lang",
+          "location": "query",
+          "required": false,
+          "type": "getStringLimitLength(1,10)",
+          "description": "Preferred language for nextComment; 'acceptLang' uses the Accept-Language header"
+        },
+        {
+          "name": "domain_whitelist_override_key",
+          "location": "query",
+          "required": false,
+          "type": "getStringLimitLength(1,1000)",
+          "description": "Bypass key for the embedding-domain whitelist check"
+        },
+        {
+          "name": "xid",
+          "location": "query",
+          "required": false,
+          "type": "getStringLimitLength(1,999)",
+          "description": "External identity for xid-based participants"
+        }
+      ],
+      "description": "One-shot bootstrap for the participation UI: returns user, participant record, conversation, own votes, next comment to vote on, PCA math, and famous/ptptoi voters; middleware may mint and return a JWT (response.auth) for existing participants.",
+      "response_hint": "JSON {user, ptpt, nextComment, conversation, votes[], pca, famous, acceptLanguage, auth?}",
+      "stability": "core",
+      "agent_relevance": "high",
+      "group": "participants-users-auth"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/ptptCommentMod",
+      "handler": "handle_POST_ptptCommentMod in server/src/routes/commentMod.ts",
+      "auth": "hybridAuth(assignToP) + getPidForParticipant",
+      "params": [
+        {
+          "name": "tid",
+          "location": "body",
+          "required": true,
+          "type": "getInt"
+        },
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid"
+        },
+        {
+          "name": "as_abusive",
+          "location": "body",
+          "required": false,
+          "type": "getBool (default null)"
+        },
+        {
+          "name": "as_factual",
+          "location": "body",
+          "required": false,
+          "type": "getBool (default null)"
+        },
+        {
+          "name": "as_feeling",
+          "location": "body",
+          "required": false,
+          "type": "getBool (default null)"
+        },
+        {
+          "name": "as_important",
+          "location": "body",
+          "required": false,
+          "type": "getBool (default null)"
+        },
+        {
+          "name": "as_notfact",
+          "location": "body",
+          "required": false,
+          "type": "getBool (default null)"
+        },
+        {
+          "name": "as_notgoodidea",
+          "location": "body",
+          "required": false,
+          "type": "getBool (default null)"
+        },
+        {
+          "name": "as_notmyfeeling",
+          "location": "body",
+          "required": false,
+          "type": "getBool (default null)"
+        },
+        {
+          "name": "as_offtopic",
+          "location": "body",
+          "required": false,
+          "type": "getBool (default null)"
+        },
+        {
+          "name": "as_spam",
+          "location": "body",
+          "required": false,
+          "type": "getBool (default null)"
+        },
+        {
+          "name": "as_unsure",
+          "location": "body",
+          "required": false,
+          "type": "getBool (default null)"
+        }
+      ],
+      "description": "Participant crowdsourced moderation: records per-comment flags (spam/offtopic/important/etc.) into crowd_mod table",
+      "response_hint": "empty JSON {}",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/ptptois",
+      "handler": "handle_GET_ptptois in server/src/routes/participantsOfInterest.ts",
+      "auth": "moveToBody + hybridAuthOptional(assignToP); full data only for owner, polis-dev, or is_data_open conversations (else empty array)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid (also kept as string via second need)",
+          "description": "Conversation whose participants-of-interest to list"
+        },
+        {
+          "name": "mod",
+          "location": "query",
+          "required": false,
+          "type": "getInt",
+          "description": "Filter by participant mod status"
+        }
+      ],
+      "description": "Lists social 'participants of interest' (participants with xid profile data: xid, x_name, x_profile_image_url, pid, mod) for display under the visualization.",
+      "response_hint": "JSON array of participant-of-interest objects",
+      "stability": "core",
+      "agent_relevance": "low",
+      "group": "participants-users-auth"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v3/ptptois",
+      "handler": "handle_PUT_ptptois in server/src/routes/participantsOfInterest.ts",
+      "auth": "moveToBody + hybridAuth(assignToP); handler enforces isModerator (403 polis_err_ptptoi_permissions_123)",
+      "params": [
+        {
+          "name": "mod",
+          "location": "body",
+          "required": true,
+          "type": "getInt",
+          "description": "New mod status for the participant (controls visibility as participant-of-interest)"
+        },
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "Conversation containing the participant"
+        },
+        {
+          "name": "pid",
+          "location": "body",
+          "required": false,
+          "type": "resolve_pidThing (numeric pid, 'mypid'/-1 resolves caller's own pid, or taken from JWT)",
+          "description": "Target participant; moderators pass the explicit pid to moderate"
+        }
+      ],
+      "description": "Moderator sets a participant's mod status (UPDATE participants SET mod), hiding or showing them as a participant-of-interest.",
+      "response_hint": "JSON {} on success",
+      "stability": "admin",
+      "agent_relevance": "low",
+      "group": "participants-users-auth"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/query_participants_by_metadata",
+      "handler": "handle_POST_query_participants_by_metadata in server/src/routes/participation.ts",
+      "auth": "hybridAuth(assignToP); handler requires caller to be owner or participant of the conversation",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "Conversation to query"
+        },
+        {
+          "name": "pmaids",
+          "location": "body",
+          "required": true,
+          "type": "getArrayOfInt (default [])",
+          "description": "Checked metadata-answer ids; empty array returns []"
+        }
+      ],
+      "description": "Returns pids of participants whose metadata answers are not excluded by the given pmaid selection (used to filter visualizations by demographic metadata).",
+      "response_hint": "JSON array of pids",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "participants-users-auth"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/reportCommentSelections",
+      "handler": "handle_POST_reportCommentSelections (server/src/routes/reports.ts)",
+      "auth": "hybridAuth(assignToP) (no moveToBody — JSON body); handler requires isModerator(zid, uid), else 403",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid (zid)"
+        },
+        {
+          "name": "report_id",
+          "location": "body",
+          "required": true,
+          "type": "getReportIdFetchRid (rid)"
+        },
+        {
+          "name": "tid",
+          "location": "body",
+          "required": true,
+          "type": "getInt",
+          "description": "Comment (statement) id"
+        },
+        {
+          "name": "include",
+          "location": "body",
+          "required": true,
+          "type": "getBool",
+          "description": "true = selection 1 (include in report), false = -1 (exclude)"
+        }
+      ],
+      "description": "Include/exclude a specific comment in a report's correlation-matrix analysis (upserts report_comment_selections) and invalidates the cached correlation matrix so it is regenerated on next fetch.",
+      "response_hint": "JSON {}",
+      "stability": "admin",
+      "agent_relevance": "medium",
+      "group": "reports-math"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/reportExport/:report_id/:report_type",
+      "handler": "handle_GET_reportExport (server/src/routes/export.ts)",
+      "auth": "none/public (moveToBody; report_id knowledge is the capability)",
+      "params": [
+        {
+          "name": "report_id",
+          "location": "path",
+          "required": true,
+          "type": "getReportIdFetchRid (rid) AND getStringLimitLength(1,1000) (declared twice)",
+          "description": "Report to export"
+        },
+        {
+          "name": "report_type",
+          "location": "path",
+          "required": true,
+          "type": "getStringLimitLength(1, 1000)",
+          "description": "One of: summary.csv, comments.csv, votes.csv, participant-votes.csv, participant-importance.csv, comment-groups.csv, comment-clusters.csv"
+        }
+      ],
+      "description": "Streams a CSV data export for the report's conversation; the report_type selects which dataset (conversation summary, comments, raw votes, participant vote matrix, participant importance, comment group stats, comment clusters). Unknown type = 404 polis_error_data_unknown_report.",
+      "response_hint": "CSV file body",
+      "stability": "core",
+      "agent_relevance": "high",
+      "group": "reports-math"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/reportNarrative",
+      "handler": "handle_GET_reportNarrative (server/src/routes/reportNarrative.ts)",
+      "auth": "hybridAuth(assignToP) + moveToBody; additionally requires the JWT claim '<authNamespace>delphi_enabled' (req.p.delphiEnabled) — otherwise fails with 503 polis_err_report_storage",
+      "params": [
+        {
+          "name": "report_id",
+          "location": "query",
+          "required": true,
+          "type": "getReportIdFetchRid (rid)"
+        },
+        {
+          "name": "model",
+          "location": "query",
+          "required": false,
+          "type": "raw req.query string (default 'openai')",
+          "description": "LLM vendor for narrative generation (openai / anthropic / gemini paths exist in the file)"
+        },
+        {
+          "name": "modelVersion",
+          "location": "query",
+          "required": false,
+          "type": "raw req.query string",
+          "description": "Specific model version override"
+        },
+        {
+          "name": "noCache",
+          "location": "query",
+          "required": false,
+          "type": "raw req.query string; 'true' bypasses cache",
+          "description": "Skip the DynamoDB report_narrative_store cache"
+        }
+      ],
+      "description": "Streams an LLM-generated narrative report (group-informed consensus, uncertainty, topic sections) for a report as a chunked text/plain stream interleaved with 'POLIS-PING:' keepalive markers; results are cached in the DynamoDB table report_narrative_store with freshness-based pruning.",
+      "response_hint": "Chunked text/plain stream: POLIS-PING lines + narrative section payloads (not plain JSON); 503 JSON if storage/authz fails before streaming",
+      "stability": "experimental",
+      "agent_relevance": "high",
+      "group": "reports-math"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/reports",
+      "handler": "handle_GET_reports (server/src/routes/reports.ts)",
+      "auth": "moveToBody + hybridAuthOptional(assignToP); knowing report_id grants view permission (comment in app.ts), conversation_id path requires isModerator, no-params path lists reports for conversations the caller owns",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": false,
+          "type": "getConversationIdFetchZid (zid)",
+          "description": "List all reports for this conversation (moderator only). Mutually exclusive with report_id (404 if both given)"
+        },
+        {
+          "name": "report_id",
+          "location": "query",
+          "required": false,
+          "type": "getReportIdFetchRid (rid)",
+          "description": "Fetch a single report by public id; acts as an access capability"
+        }
+      ],
+      "description": "Lists report objects. Internal rid/zid are stripped and replaced with the public conversation_id; returns report_id, report_name, label_* fields, created/modified etc.",
+      "response_hint": "JSON array of report objects",
+      "stability": "core",
+      "agent_relevance": "high",
+      "group": "reports-math"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/reports",
+      "handler": "handle_POST_reports (server/src/routes/reports.ts)",
+      "auth": "hybridAuth(assignToP) (no moveToBody — params must be in JSON body); handler requires isModerator(zid, uid)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": false,
+          "type": "getConversationIdFetchZid (zid)",
+          "description": "Declared with want() but effectively required — without it the moderator check fails with 403"
+        },
+        {
+          "name": "mod_level",
+          "location": "body",
+          "required": false,
+          "type": "getInt (assigned as mod_level, default -2 in handler)",
+          "description": "Moderation level stored on the report"
+        }
+      ],
+      "description": "Creates a new report for a conversation: generates a public report_id ('r' + 20-char token) and inserts into the reports table.",
+      "response_hint": "JSON {} (the new report_id is NOT returned; fetch via GET /api/v3/reports?conversation_id=...)",
+      "stability": "core",
+      "agent_relevance": "high",
+      "group": "reports-math"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v3/reports",
+      "handler": "handle_PUT_reports (server/src/routes/reports.ts)",
+      "auth": "moveToBody + hybridAuth(assignToP); handler requires isModerator(zid, uid)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid (zid)"
+        },
+        {
+          "name": "report_id",
+          "location": "body",
+          "required": true,
+          "type": "getReportIdFetchRid (rid)"
+        },
+        {
+          "name": "report_name",
+          "location": "body",
+          "required": false,
+          "type": "getStringLimitLength(999)"
+        },
+        {
+          "name": "label_x_neg",
+          "location": "body",
+          "required": false,
+          "type": "getStringLimitLength(999)"
+        },
+        {
+          "name": "label_x_pos",
+          "location": "body",
+          "required": false,
+          "type": "getStringLimitLength(999)"
+        },
+        {
+          "name": "label_y_neg",
+          "location": "body",
+          "required": false,
+          "type": "getStringLimitLength(999)"
+        },
+        {
+          "name": "label_y_pos",
+          "location": "body",
+          "required": false,
+          "type": "getStringLimitLength(999)"
+        },
+        {
+          "name": "label_group_0",
+          "location": "body",
+          "required": false,
+          "type": "getStringLimitLength(999)"
+        },
+        {
+          "name": "label_group_1",
+          "location": "body",
+          "required": false,
+          "type": "getStringLimitLength(999)"
+        },
+        {
+          "name": "label_group_2",
+          "location": "body",
+          "required": false,
+          "type": "getStringLimitLength(999)"
+        },
+        {
+          "name": "label_group_3",
+          "location": "body",
+          "required": false,
+          "type": "getStringLimitLength(999)"
+        },
+        {
+          "name": "label_group_4",
+          "location": "body",
+          "required": false,
+          "type": "getStringLimitLength(999)"
+        },
+        {
+          "name": "label_group_5",
+          "location": "body",
+          "required": false,
+          "type": "getStringLimitLength(999)"
+        },
+        {
+          "name": "label_group_6",
+          "location": "body",
+          "required": false,
+          "type": "getStringLimitLength(999)"
+        },
+        {
+          "name": "label_group_7",
+          "location": "body",
+          "required": false,
+          "type": "getStringLimitLength(999)"
+        },
+        {
+          "name": "label_group_8",
+          "location": "body",
+          "required": false,
+          "type": "getStringLimitLength(999)"
+        },
+        {
+          "name": "label_group_9",
+          "location": "body",
+          "required": false,
+          "type": "getStringLimitLength(999)"
+        }
+      ],
+      "description": "Updates a report's name and axis/group labels (only report_name and label_* columns are writable; everything else is filtered out).",
+      "response_hint": "JSON {}",
+      "stability": "core",
+      "agent_relevance": "medium",
+      "group": "reports-math"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/reserve_conversation_id",
+      "handler": "handle_POST_reserve_conversation_id (server/src/routes/conversations.ts)",
+      "auth": "hybridAuth(assignToP) — no moveToBody; no params",
+      "params": [],
+      "description": "Reserve a conversation_id (zinvite registered against zid=0) so the id/URL is known before the conversation is created; pass it later as conversation_id to POST /api/v3/conversations. Code comment: 'TODO check auth - maybe bot has key'.",
+      "response_hint": "200 JSON {conversation_id}",
+      "stability": "core",
+      "agent_relevance": "medium",
+      "group": "conversations"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/sendCreatedLinkToEmail",
+      "handler": "handle_POST_sendCreatedLinkToEmail in server/src/server.ts (inside initializePolisHelpers closure)",
+      "auth": "hybridAuth(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid + getStringLimitLength(1,100)",
+          "description": "declared twice: zid resolution plus the original string preserved for the emailed link; client passes once"
+        }
+      ],
+      "description": "Email the authenticated user (looked up by uid) a link to the conversation they just created.",
+      "response_hint": "JSON {} on success",
+      "stability": "admin",
+      "agent_relevance": "low",
+      "group": "metadata-invites-notifications"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/sendEmailExportReady",
+      "handler": "handle_POST_sendEmailExportReady in server/src/server.ts (inside initializePolisHelpers closure)",
+      "auth": "none/public (validated in-handler against Config.webserverUsername/webserverPass - internal service credential)",
+      "params": [
+        {
+          "name": "webserver_username",
+          "location": "body",
+          "required": true,
+          "type": "getStringLimitLength(1,999)",
+          "description": "internal service username; must equal Config.webserverUsername or 403"
+        },
+        {
+          "name": "webserver_pass",
+          "location": "body",
+          "required": true,
+          "type": "getStringLimitLength(1,999)",
+          "description": "internal service password; must equal Config.webserverPass or 403"
+        },
+        {
+          "name": "email",
+          "location": "body",
+          "required": true,
+          "type": "getEmail",
+          "description": "recipient of the export-ready email"
+        },
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getStringLimitLength(1,1000)",
+          "description": "conversation id used to build the download URL (string only; no zid lookup)"
+        },
+        {
+          "name": "filename",
+          "location": "body",
+          "required": true,
+          "type": "getStringLimitLength(9999)",
+          "description": "export filename used in the /api/v3/dataExport/results download URL"
+        }
+      ],
+      "description": "Server-to-server hook (called by the export worker) that emails a user a download link when their data export finishes.",
+      "response_hint": "JSON {} on success",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "metadata-invites-notifications"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/snapshot",
+      "handler": "handle_GET_snapshot in server/src/server.ts",
+      "auth": "hybridAuth(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid"
+        }
+      ],
+      "description": "Intended to clone/snapshot a conversation; handler unconditionally throws a TODO error — dead endpoint",
+      "response_hint": "500 error always",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/stars",
+      "handler": "handle_POST_stars in server/src/routes/commentMod.ts",
+      "auth": "hybridAuth(assignToP), getPidForParticipant(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "conversation the comment belongs to"
+        },
+        {
+          "name": "tid",
+          "location": "body",
+          "required": true,
+          "type": "getInt",
+          "description": "comment id to star/unstar"
+        },
+        {
+          "name": "starred",
+          "location": "body",
+          "required": true,
+          "type": "getIntInRange(0,1)",
+          "description": "1 to star, 0 to unstar"
+        }
+      ],
+      "description": "Record a star (favorite) on a comment for the calling participant; duplicate star for same comment returns 406.",
+      "response_hint": "JSON {} on success; 406 polis_err_vote_duplicate on repeat",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "comments-votes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/testConnection",
+      "handler": "handle_GET_testConnection in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Liveness check; always returns {status:'ok'}",
+      "response_hint": "JSON {status:'ok'}",
+      "stability": "internal",
+      "agent_relevance": "medium",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/testDatabase",
+      "handler": "handle_GET_testDatabase in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "DB health check; runs 'select uid from users limit 1' and returns {status:'ok'} or 500",
+      "response_hint": "JSON {status:'ok'}",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v3/topicAgenda/selections",
+      "handler": "handle_DELETE_topicAgenda_selections (server/src/routes/delphi/topicAgenda.ts)",
+      "auth": "hybridAuth(assignToP) + moveToBody + ensureParticipant({createIfMissing:false, issueJWT:false})",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid (zid)"
+        }
+      ],
+      "description": "Deletes the calling participant's topic-agenda selections for a conversation.",
+      "response_hint": "JSON",
+      "stability": "experimental",
+      "agent_relevance": "low",
+      "group": "reports-math"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/topicAgenda/selections",
+      "handler": "handle_GET_topicAgenda_selections (server/src/routes/delphi/topicAgenda.ts)",
+      "auth": "hybridAuthOptional(assignToP) + moveToBody + ensureParticipantOptional({createIfMissing:false, issueJWT:false}); errors if caller has no participant record (pid missing/negative)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid (zid)"
+        }
+      ],
+      "description": "Returns the calling participant's own topic-agenda selections for a conversation.",
+      "response_hint": "JSON with the participant's selections",
+      "stability": "experimental",
+      "agent_relevance": "low",
+      "group": "reports-math"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/topicAgenda/selections",
+      "handler": "handle_POST_topicAgenda_selections (server/src/routes/delphi/topicAgenda.ts)",
+      "auth": "hybridAuthOptional(assignToP) + moveToBody + ensureParticipant({createIfMissing:true, issueJWT:true}) + attachAuthToken()",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid (zid)"
+        },
+        {
+          "name": "selections",
+          "location": "body",
+          "required": true,
+          "type": "array (raw req.body)",
+          "description": "The participant's chosen topics for the agenda"
+        }
+      ],
+      "description": "Participant-facing: records the calling participant's topic-agenda selections for a conversation, creating the participant and issuing a participant JWT if needed.",
+      "response_hint": "JSON; participant auth token attached to response",
+      "stability": "experimental",
+      "agent_relevance": "low",
+      "group": "reports-math"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v3/topicAgenda/selections",
+      "handler": "handle_PUT_topicAgenda_selections (server/src/routes/delphi/topicAgenda.ts)",
+      "auth": "hybridAuth(assignToP) + moveToBody + ensureParticipant({createIfMissing:false, issueJWT:false})",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid (zid)"
+        },
+        {
+          "name": "selections",
+          "location": "body",
+          "required": true,
+          "type": "array (raw req.body)"
+        }
+      ],
+      "description": "Replaces/updates the calling participant's existing topic-agenda selections.",
+      "response_hint": "JSON",
+      "stability": "experimental",
+      "agent_relevance": "low",
+      "group": "reports-math"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/topicMod/hierarchy",
+      "handler": "handle_GET_topicMod_hierarchy (server/src/routes/delphi/topicMod.ts)",
+      "auth": "none/public (moveToBody + need(conversation_id) only)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid (zid)"
+        }
+      ],
+      "description": "Returns the multi-layer topic/cluster hierarchy for a conversation, structured from Delphi cluster records across clustering layers.",
+      "response_hint": "JSON {status, hierarchy, totalClusters, layers}",
+      "stability": "experimental",
+      "agent_relevance": "low",
+      "group": "reports-math"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/topicMod/moderate",
+      "handler": "handle_POST_topicMod_moderate (server/src/routes/delphi/topicMod.ts)",
+      "auth": "none/public (moveToBody + need(conversation_id) only — NO auth middleware; 'moderator' is just a self-reported body string)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid (zid)"
+        },
+        {
+          "name": "action",
+          "location": "body",
+          "required": true,
+          "type": "string enum: 'accept' | 'reject' | 'meta'"
+        },
+        {
+          "name": "moderator",
+          "location": "body",
+          "required": true,
+          "type": "string (free-text moderator name)"
+        },
+        {
+          "name": "topic_key",
+          "location": "body",
+          "required": false,
+          "type": "string",
+          "description": "If given, moderates the entire topic"
+        },
+        {
+          "name": "comment_ids",
+          "location": "body",
+          "required": false,
+          "type": "array",
+          "description": "Individual comment ids to moderate instead of/in addition to a whole topic"
+        }
+      ],
+      "description": "Applies a moderation action (accept/reject/meta) to a whole topic and/or individual comments, upserting DynamoDB Delphi_TopicModerationStatus / comment records.",
+      "response_hint": "JSON {status:'success', message, moderated_at}; validation errors as HTTP 200 {status:'error'}",
+      "stability": "experimental",
+      "agent_relevance": "medium",
+      "group": "reports-math"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/topicMod/proximity",
+      "handler": "handle_GET_topicMod_proximity (server/src/routes/delphi/topicMod.ts)",
+      "auth": "none/public (moveToBody + need(conversation_id) only)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid (zid)"
+        },
+        {
+          "name": "layer_id",
+          "location": "query",
+          "required": false,
+          "type": "raw req.query string (default 'all')",
+          "description": "Restrict UMAP points to one clustering layer"
+        }
+      ],
+      "description": "Returns comment proximity data — UMAP coordinate points for the conversation's comments — for rendering the topic-moderation proximity view.",
+      "response_hint": "JSON {status, proximity_data: [...], total_points}",
+      "stability": "experimental",
+      "agent_relevance": "low",
+      "group": "reports-math"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/topicMod/stats",
+      "handler": "handle_GET_topicMod_stats (server/src/routes/delphi/topicMod.ts)",
+      "auth": "none/public (moveToBody + need(conversation_id) only)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid (zid)"
+        }
+      ],
+      "description": "Returns aggregate topic-moderation statistics for a conversation: counts of total topics and pending/accepted/rejected/meta statuses.",
+      "response_hint": "JSON {status, stats: {total_topics, pending, accepted, rejected, meta}}",
+      "stability": "experimental",
+      "agent_relevance": "medium",
+      "group": "reports-math"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/topicMod/topics",
+      "handler": "handle_GET_topicMod_topics (server/src/routes/delphi/topicMod.ts)",
+      "auth": "none/public (moveToBody + need(conversation_id) only — NO auth middleware)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid (zid)"
+        },
+        {
+          "name": "job_id",
+          "location": "query",
+          "required": false,
+          "type": "raw req.query string",
+          "description": "Restrict to topics from a specific Delphi job"
+        }
+      ],
+      "description": "Lists Delphi-discovered topics for a conversation grouped by clustering layer, each annotated with its moderation status (from Delphi_TopicModerationStatus).",
+      "response_hint": "JSON {status, topics_by_layer, total_topics}",
+      "stability": "experimental",
+      "agent_relevance": "medium",
+      "group": "reports-math"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/topicMod/topics/:topicKey/comments",
+      "handler": "handle_GET_topicMod_comments in server/src/routes/delphi/topicMod.ts",
+      "auth": "none/public (only moveToBody + param validation; NO auth middleware in the chain)",
+      "params": [
+        {
+          "name": "topicKey",
+          "location": "path",
+          "required": true,
+          "type": "string (Express route param, unvalidated)",
+          "description": "Delphi topic cluster key"
+        },
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "conversation whose Delphi comment clusters to query"
+        }
+      ],
+      "description": "List comments assigned to a Delphi ML topic cluster (from DynamoDB Delphi_CommentClusters), with UMAP coordinates and per-comment moderation status — used by topic-based moderation UI.",
+      "response_hint": "JSON {status, message, comments: [{comment_id, comment_text, umap_x, umap_y, cluster_id, layer_id, moderation_status}], total_comments}; errors come back as HTTP 200 with status:'error'",
+      "stability": "experimental",
+      "agent_relevance": "medium",
+      "group": "comments-votes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/topicStats",
+      "handler": "handle_GET_topicStats in server/src/routes/topicStats.ts",
+      "auth": "none (moveToBody only)",
+      "params": [
+        {
+          "name": "report_id",
+          "location": "query",
+          "required": true,
+          "type": "handler-validated string (no need()/want() declared)",
+          "description": "report id; resolved to zid via getZidFromReport"
+        }
+      ],
+      "description": "Returns per-topic comment counts and comment tids from Delphi DynamoDB topic-cluster tables for a report",
+      "response_hint": "JSON {status, topics:[{topic_key, name, comment_count, comment_tids}]}",
+      "stability": "experimental",
+      "agent_relevance": "medium",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/trashes",
+      "handler": "handle_POST_trashes in server/src/routes/commentMod.ts",
+      "auth": "hybridAuth(assignToP), getPidForParticipant(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "conversation the comment belongs to"
+        },
+        {
+          "name": "tid",
+          "location": "body",
+          "required": true,
+          "type": "getInt",
+          "description": "comment id to flag"
+        },
+        {
+          "name": "trashed",
+          "location": "body",
+          "required": true,
+          "type": "getIntInRange(0,1)",
+          "description": "1 to trash, 0 to untrash"
+        }
+      ],
+      "description": "Record a participant-side 'trash' flag on a comment (participant marks a comment as junk); insert-only, duplicates return 406.",
+      "response_hint": "JSON {} on success; 406 polis_err_vote_duplicate on repeat",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "comments-votes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/treevite/acceptInvite",
+      "handler": "handle_POST_treevite_acceptInvite in server/src/invites/treevites.ts",
+      "auth": "moveToBody, hybridAuthOptional(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "conversation the invite belongs to"
+        },
+        {
+          "name": "invite_code",
+          "location": "body",
+          "required": true,
+          "type": "getStringLimitLength(1,128)",
+          "description": "unused (status=0) treevite invite code to redeem"
+        }
+      ],
+      "description": "Redeem a treevite invite code: creates an anonymous user+participant if not already authenticated, marks the invite used atomically, issues a persistent login_code, lazily creates the participant's own invite codes, and returns an anonymous participant JWT.",
+      "response_hint": "201 JSON { status: \"ok\", wave_id, invite_id, login_code, auth: { token, token_type: \"Bearer\", expires_in } }",
+      "stability": "experimental",
+      "agent_relevance": "medium",
+      "group": "metadata-invites-notifications"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/treevite/invites",
+      "handler": "handle_GET_treevite_invites in server/src/invites/treevites.ts",
+      "auth": "moveToBody, hybridAuth(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "conversation whose owner-generated treevite invites to list"
+        },
+        {
+          "name": "wave_id",
+          "location": "query",
+          "required": false,
+          "type": "getInt",
+          "description": "filter to one treevite wave"
+        },
+        {
+          "name": "status",
+          "location": "query",
+          "required": false,
+          "type": "getInt",
+          "description": "filter by invite status (0=unused, 1=used)"
+        },
+        {
+          "name": "limit",
+          "location": "query",
+          "required": false,
+          "type": "getInt",
+          "description": "page size; default 50, max 500"
+        },
+        {
+          "name": "offset",
+          "location": "query",
+          "required": false,
+          "type": "getInt",
+          "description": "pagination offset"
+        }
+      ],
+      "description": "Paginated list of owner-generated (invite_owner_pid IS NULL) treevite invite codes for a conversation, joined with wave number, newest first.",
+      "response_hint": "JSON { invites: [rows], pagination: {limit, offset, total, ...} }",
+      "stability": "experimental",
+      "agent_relevance": "medium",
+      "group": "metadata-invites-notifications"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/treevite/invites/csv",
+      "handler": "handle_GET_treevite_invites_csv in server/src/invites/treevites.ts",
+      "auth": "moveToBody, hybridAuth(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "conversation whose owner invites to export"
+        }
+      ],
+      "description": "Download all owner-generated treevite invite codes for a conversation as a CSV attachment (columns: wave, invite_code, status, invite_used_at, created_at).",
+      "response_hint": "text/csv attachment",
+      "stability": "experimental",
+      "agent_relevance": "medium",
+      "group": "metadata-invites-notifications"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/treevite/login",
+      "handler": "handle_POST_treevite_login in server/src/invites/treevites.ts",
+      "auth": "moveToBody, hybridAuthOptional(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid"
+        },
+        {
+          "name": "login_code",
+          "location": "body",
+          "required": true,
+          "type": "getStringLimitLength(1,256)",
+          "description": "returning-participant login code issued at acceptInvite time"
+        }
+      ],
+      "description": "Verifies a treevite login code (SHA-256 lookup + bcrypt compare) and issues a participant JWT for re-entry",
+      "response_hint": "JSON {token, pid, ...}",
+      "stability": "experimental",
+      "agent_relevance": "medium",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/treevite/me",
+      "handler": "handle_GET_treevite_me in server/src/invites/treevites.ts",
+      "auth": "moveToBody, hybridAuth(assignToP), ensureParticipantOptional({createIfMissing:false,issueJWT:false})",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid"
+        }
+      ],
+      "description": "Returns the calling participant's treevite status: the wave they entered through and their own invite codes (nulls/empty if not a participant)",
+      "response_hint": "JSON {participant, wave, invites}",
+      "stability": "experimental",
+      "agent_relevance": "medium",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/treevite/myInvites",
+      "handler": "handle_GET_treevite_myInvites in server/src/invites/treevites.ts",
+      "auth": "moveToBody, hybridAuth(assignToP), ensureParticipantOptional({createIfMissing:false, issueJWT:false})",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "conversation to list the calling participant's invites for"
+        }
+      ],
+      "description": "List the calling participant's own unused (status=0) treevite invite codes for a conversation; returns [] if the caller has no pid yet.",
+      "response_hint": "JSON array of { id, invite_code, status, created_at }",
+      "stability": "experimental",
+      "agent_relevance": "low",
+      "group": "metadata-invites-notifications"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/treevite/myInvites/csv",
+      "handler": "handle_GET_treevite_myInvites_csv in server/src/invites/treevites.ts",
+      "auth": "moveToBody, hybridAuth(assignToP), ensureParticipantOptional({createIfMissing:false, issueJWT:false})",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "conversation to export the calling participant's invites for"
+        }
+      ],
+      "description": "Download the calling participant's own unused treevite invite codes as a CSV attachment (columns: invite_code, status, created_at); header-only CSV if the caller has no pid.",
+      "response_hint": "text/csv attachment",
+      "stability": "experimental",
+      "agent_relevance": "low",
+      "group": "metadata-invites-notifications"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/treevite/waves",
+      "handler": "handle_GET_treevite_waves in server/src/invites/treevites.ts",
+      "auth": "moveToBody, hybridAuth(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid"
+        },
+        {
+          "name": "wave",
+          "location": "query",
+          "required": false,
+          "type": "getInt",
+          "description": "filter to a single wave number"
+        }
+      ],
+      "description": "Lists treevite waves for a conversation (wave, parent_wave, invites_per_user, owner_invites, size, timestamps)",
+      "response_hint": "JSON array of wave rows",
+      "stability": "experimental",
+      "agent_relevance": "medium",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/treevite/waves",
+      "handler": "handle_POST_treevite_waves in server/src/invites/treevites.ts",
+      "auth": "moveToBody, hybridAuth(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid"
+        },
+        {
+          "name": "invites_per_user",
+          "location": "body",
+          "required": false,
+          "type": "getInt",
+          "description": "invite codes generated per participant of the parent wave"
+        },
+        {
+          "name": "owner_invites",
+          "location": "body",
+          "required": false,
+          "type": "getInt",
+          "description": "extra owner-held invite codes; at least one of invites_per_user/owner_invites must be > 0"
+        },
+        {
+          "name": "parent_wave",
+          "location": "body",
+          "required": false,
+          "type": "getInt",
+          "description": "defaults to latest existing wave"
+        }
+      ],
+      "description": "Creates the next tree-invite wave for a conversation and generates invite codes sized by the parent wave",
+      "response_hint": "JSON wave object",
+      "stability": "experimental",
+      "agent_relevance": "medium",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/tutorial",
+      "handler": "handle_POST_tutorial in server/src/server.ts",
+      "auth": "hybridAuth(assignToP)",
+      "params": [
+        {
+          "name": "step",
+          "location": "body",
+          "required": true,
+          "type": "getInt",
+          "description": "tutorial step number to persist (stored in users.tut)"
+        }
+      ],
+      "description": "Persist the caller's UI tutorial progress step on their user record.",
+      "response_hint": "JSON {} on success",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "comments-votes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/upvotes",
+      "handler": "handle_POST_upvotes in server/src/routes/commentMod.ts",
+      "auth": "hybridAuth(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid"
+        }
+      ],
+      "description": "Upvote a conversation (once per user); updates conversations.upvotes counter",
+      "response_hint": "empty JSON {} or 403 if already upvoted",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/users",
+      "handler": "handle_GET_users in server/src/routes/users.ts",
+      "auth": "moveToBody + hybridAuthOptional(assignToP); handler returns 401 'Authentication required' when no uid resolves",
+      "params": [
+        {
+          "name": "xid",
+          "location": "query",
+          "required": false,
+          "type": "getStringLimitLength(1,999)",
+          "description": "External identity to look up (used together with owner_uid)"
+        },
+        {
+          "name": "owner_uid",
+          "location": "query",
+          "required": false,
+          "type": "getInt",
+          "description": "Owner uid scoping the xid lookup"
+        }
+      ],
+      "description": "Returns the current user object for the JWT-authenticated caller (the API's 'whoami'); with xid+owner_uid it resolves and returns the xid-mapped user instead.",
+      "response_hint": "JSON user object (uid, email, hname, plan/site info, ...)",
+      "stability": "core",
+      "agent_relevance": "high",
+      "group": "participants-users-auth"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v3/users",
+      "handler": "handle_PUT_users in server/src/routes/users.ts",
+      "auth": "moveToBody + hybridAuth(assignToP); uid_of_user honored only for polis-dev accounts",
+      "params": [
+        {
+          "name": "email",
+          "location": "body",
+          "required": false,
+          "type": "getEmail",
+          "description": "New email for the account"
+        },
+        {
+          "name": "hname",
+          "location": "body",
+          "required": false,
+          "type": "getOptionalStringLimitLength(9999)",
+          "description": "New display name"
+        },
+        {
+          "name": "uid_of_user",
+          "location": "body",
+          "required": false,
+          "type": "getInt",
+          "description": "Target uid to update (polis-dev only; otherwise ignored)"
+        }
+      ],
+      "description": "Updates the caller's user record (email and/or display name); polis-dev users may update another account via uid_of_user.",
+      "response_hint": "JSON raw update result",
+      "stability": "core",
+      "agent_relevance": "medium",
+      "group": "participants-users-auth"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/users/invite",
+      "handler": "handle_POST_users_invite in server/src/routes/users.ts",
+      "auth": "hybridAuth(assignToP) (a commented-out authWithApiKey hints at a planned API-key path)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid (also kept as string via second need, used to build the invite URL)",
+          "description": "Conversation participants are invited to"
+        },
+        {
+          "name": "emails",
+          "location": "body",
+          "required": true,
+          "type": "getArrayOfStringNonEmpty",
+          "description": "Email addresses to invite (one single-use token each)"
+        }
+      ],
+      "description": "Generates single-use suzinvite tokens, saves them, emails each address an invite link to the conversation, and records the inviter relationship.",
+      "response_hint": "JSON {status: 'success'}; 500 with polis_err_sending_invite family on failure",
+      "stability": "admin",
+      "agent_relevance": "high",
+      "group": "participants-users-auth"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/verify",
+      "handler": "handle_GET_verification in server/src/server.ts",
+      "auth": "none (moveToBody only)",
+      "params": [
+        {
+          "name": "e",
+          "location": "query",
+          "required": true,
+          "type": "getStringLimitLength(1,1000)",
+          "description": "einvite code from the verification email"
+        }
+      ],
+      "description": "Email-verification link target: marks the einvite's email address as validated and renders a small HTML confirmation page",
+      "response_hint": "HTML page",
+      "stability": "core",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/votes",
+      "handler": "handle_GET_votes in server/src/routes/votes.ts",
+      "auth": "moveToBody, hybridAuthOptional(assignToP), resolve_pidThing('pid')",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "conversation to read votes from"
+        },
+        {
+          "name": "tid",
+          "location": "query",
+          "required": false,
+          "type": "getInt",
+          "description": "restrict to a single comment"
+        },
+        {
+          "name": "pid",
+          "location": "query",
+          "required": false,
+          "type": "resolve_pidThing",
+          "description": "participant whose votes to fetch; normally resolved from auth ('mypid'); returns [] if unresolved"
+        }
+      ],
+      "description": "Get the latest unique votes of a single participant (per-comment dedup via votes_latest_unique), optionally filtered to one comment.",
+      "response_hint": "JSON array of vote rows [{pid, tid, vote, ...}]; empty array when pid can't be resolved",
+      "stability": "core",
+      "agent_relevance": "high",
+      "group": "comments-votes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/votes",
+      "handler": "handle_POST_votes in server/src/routes/votes.ts",
+      "auth": "hybridAuthOptional(assignToP), ensureParticipant({createIfMissing:true, issueJWT:true}), attachAuthToken()",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "conversation being voted in (403 if closed)"
+        },
+        {
+          "name": "tid",
+          "location": "body",
+          "required": true,
+          "type": "getInt",
+          "description": "comment id being voted on"
+        },
+        {
+          "name": "vote",
+          "location": "body",
+          "required": true,
+          "type": "getIntInRange(-1,1)",
+          "description": "-1 agree (pull), 0 pass, 1 disagree (push)"
+        },
+        {
+          "name": "xid",
+          "location": "body",
+          "required": false,
+          "type": "getStringLimitLength(1,999)",
+          "description": "external identity id (processed before ensureParticipant)"
+        },
+        {
+          "name": "starred",
+          "location": "body",
+          "required": false,
+          "type": "getBool",
+          "description": "also star the comment in the same call"
+        },
+        {
+          "name": "high_priority",
+          "location": "body",
+          "required": false,
+          "type": "getBool (default false)",
+          "description": "mark vote as high priority"
+        },
+        {
+          "name": "lang",
+          "location": "body",
+          "required": false,
+          "type": "getStringLimitLength(1,10)",
+          "description": "preferred language for the returned nextComment"
+        }
+      ],
+      "description": "Cast a vote on a comment; creates the participant if missing, and returns the next comment to vote on in the same response.",
+      "response_hint": "JSON {nextComment?, currentPid, modOptions?}; 406 polis_err_vote_duplicate, 403 polis_err_conversation_is_closed",
+      "stability": "core",
+      "agent_relevance": "high",
+      "group": "comments-votes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/votes-bulk",
+      "handler": "handle_POST_votes_bulk in server/src/routes/votes.ts",
+      "auth": "hybridAuth(assignToP), resolve_pidThing('pid'); handler additionally requires req.p.delphiEnabled (OIDC 'delphi-enabled' role) — throws Unauthorized otherwise",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "target conversation; must contain at least one comment with non-null original_id (else 400 polis_err_votes_bulk_no_mappable_comments)"
+        },
+        {
+          "name": "csv",
+          "location": "body",
+          "required": true,
+          "type": "raw req.body.csv (NOT declared via need/want)",
+          "description": "CSV of external votes to import; 400 polis_err_param_missing_csv_votes if absent"
+        }
+      ],
+      "description": "Async bulk vote import (bring-your-own-data): uploads CSV to S3, records a byod_import_jobs row, and enqueues an SQS mapping job; comments must have been created via comments-bulk with original_id.",
+      "response_hint": "JSON {status: 'processing', message: 'Vote import started...'}; work completes asynchronously",
+      "stability": "experimental",
+      "agent_relevance": "medium",
+      "group": "comments-votes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/votes/famous",
+      "handler": "handle_GET_votes_famous in server/src/routes/votes.ts (doFamousQuery in server/src/server-helpers.ts)",
+      "auth": "moveToBody, hybridAuthOptional(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "conversation to fetch featured participants for"
+        },
+        {
+          "name": "math_tick",
+          "location": "query",
+          "required": false,
+          "type": "getInt (default -1)",
+          "description": "math result version to align with"
+        },
+        {
+          "name": "ptptoiLimit",
+          "location": "query",
+          "required": false,
+          "type": "getIntInRange(0,99)",
+          "description": "max participants-of-interest to return (default 30)"
+        }
+      ],
+      "description": "Get 'famous'/featured participants (participants-of-interest, authors of consensus comments) with their vote vectors and projected positions, for the visualization overlay.",
+      "response_hint": "JSON object keyed by pid with participant info + votes string + projection data",
+      "stability": "core",
+      "agent_relevance": "low",
+      "group": "comments-votes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/votes/me",
+      "handler": "handle_GET_votes_me in server/src/routes/votes.ts",
+      "auth": "moveToBody, hybridAuth(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "conversation to read own votes from"
+        }
+      ],
+      "description": "Get the full vote history of the authenticated caller in a conversation (all rows from votes, weight normalized from int to [-1,1]).",
+      "response_hint": "JSON array of vote rows including revotes [{zid?, pid, tid, vote, weight, created}]",
+      "stability": "core",
+      "agent_relevance": "medium",
+      "group": "comments-votes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/xid/:xid_report",
+      "handler": "handle_GET_xidReport in server/src/routes/export.ts",
+      "auth": "none (moveToBody only)",
+      "params": [
+        {
+          "name": "xid_report",
+          "location": "path",
+          "required": true,
+          "type": "getStringLimitLength(1,99)",
+          "description": "filename of form '{conversation-uuid}-xid.csv'; the uuid is resolved to a zid"
+        }
+      ],
+      "description": "Download a CSV summary of participant xids for a conversation identified by its UUID-based report filename",
+      "response_hint": "CSV",
+      "stability": "admin",
+      "agent_relevance": "medium",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/xidAllowList",
+      "handler": "handle_GET_xidAllowList in server/src/routes/xids.ts",
+      "auth": "moveToBody + hybridAuth(assignToP); handler enforces isModerator",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "Conversation whose allow-list to read"
+        },
+        {
+          "name": "limit",
+          "location": "query",
+          "required": false,
+          "type": "getInt",
+          "description": "Page size (default 50, max 500)"
+        },
+        {
+          "name": "offset",
+          "location": "query",
+          "required": false,
+          "type": "getInt",
+          "description": "Records to skip"
+        }
+      ],
+      "description": "Moderator-only paginated view of the xid_whitelist for a conversation (including legacy owner-scoped entries); each entry shows the xid and the pid if that xid is already in use, else null.",
+      "response_hint": "JSON {xids: [{xid, pid|null}], pagination: {...}}",
+      "stability": "admin",
+      "agent_relevance": "medium",
+      "group": "participants-users-auth"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/xidAllowList",
+      "handler": "handle_POST_xidAllowList in server/src/routes/xids.ts",
+      "auth": "hybridAuth(assignToP); handler enforces isModerator",
+      "params": [
+        {
+          "name": "xid_allow_list",
+          "location": "body",
+          "required": true,
+          "type": "getArrayOfStringNonEmpty",
+          "description": "External identities to allow into the conversation"
+        },
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "Conversation whose allow-list to modify"
+        },
+        {
+          "name": "replace_all",
+          "location": "body",
+          "required": false,
+          "type": "getBool (default false)",
+          "description": "If true, deletes existing allow-list entries not present in the incoming list (preserves kept entries and their pids)"
+        }
+      ],
+      "description": "Adds xids to a conversation's allow list (INSERT ... ON CONFLICT DO NOTHING); with replace_all=true it synchronizes the list to exactly the incoming set.",
+      "response_hint": "JSON {} on success",
+      "stability": "admin",
+      "agent_relevance": "high",
+      "group": "participants-users-auth"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/xidAllowList/csv",
+      "handler": "handle_GET_xidAllowList_csv in server/src/routes/xids.ts",
+      "auth": "moveToBody + hybridAuth(assignToP); handler enforces isModerator",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "Conversation whose allow-list to export"
+        }
+      ],
+      "description": "Moderator-only CSV export of the full xid allow list for a conversation: columns pid, xid.",
+      "response_hint": "text/csv attachment (filename xid_allow_list_<zid>_<timestamp>.csv)",
+      "stability": "admin",
+      "agent_relevance": "low",
+      "group": "participants-users-auth"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/xids",
+      "handler": "handle_GET_xids in server/src/routes/xids.ts",
+      "auth": "moveToBody + hybridAuth(assignToP); handler enforces isModerator (403 polis_err_get_xids_not_authorized)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "Conversation whose xid mappings to list"
+        },
+        {
+          "name": "limit",
+          "location": "query",
+          "required": false,
+          "type": "getInt",
+          "description": "Page size (default 50, max 500)"
+        },
+        {
+          "name": "offset",
+          "location": "query",
+          "required": false,
+          "type": "getInt",
+          "description": "Records to skip"
+        }
+      ],
+      "description": "Moderator-only paginated list of external-identity (xid) records in use by participants of a conversation, with pid and vote_count per record.",
+      "response_hint": "JSON {xids: [{pid, xid, vote_count}], pagination: {limit, offset, total, ...}}",
+      "stability": "admin",
+      "agent_relevance": "medium",
+      "group": "participants-users-auth"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/xids/csv",
+      "handler": "handle_GET_xids_csv in server/src/routes/xids.ts",
+      "auth": "moveToBody + hybridAuth(assignToP); handler enforces isModerator",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "Conversation whose xid mappings to export"
+        }
+      ],
+      "description": "Moderator-only CSV export (attachment download) of all in-use xid records for a conversation: columns pid, xid, vote_count.",
+      "response_hint": "text/csv attachment (filename xids_in_use_<zid>_<timestamp>.csv)",
+      "stability": "admin",
+      "agent_relevance": "low",
+      "group": "participants-users-auth"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v3/zinvites/:zid",
+      "handler": "handle_GET_zinvites in server/src/server.ts (inside initializePolisHelpers closure)",
+      "auth": "moveToBody, hybridAuth(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "query",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "public conversation id; resolved to internal zid. Note: the :zid path segment is vestigial - validation reads conversation_id, so pass it explicitly"
+        }
+      ],
+      "description": "List all zinvite (conversation share/invite) codes for a conversation; owner-only (SQL checks conversations.owner = uid).",
+      "response_hint": "JSON object { codes: [zinvite rows] }",
+      "stability": "admin",
+      "agent_relevance": "medium",
+      "group": "metadata-invites-notifications"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v3/zinvites/:zid",
+      "handler": "handle_POST_zinvites in server/src/server.ts (inside initializePolisHelpers closure)",
+      "auth": "moveToBody, hybridAuth(assignToP)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "body",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "public conversation id; resolved to internal zid. :zid path segment vestigial (see GET)"
+        },
+        {
+          "name": "short_url",
+          "location": "body",
+          "required": false,
+          "type": "getBool",
+          "description": "generate a short-form zinvite code"
+        }
+      ],
+      "description": "Generate and register a new zinvite (share/invite) code for a conversation; owner-only.",
+      "response_hint": "JSON object { zinvite: string }",
+      "stability": "admin",
+      "agent_relevance": "high",
+      "group": "metadata-invites-notifications"
+    },
+    {
+      "method": "GET",
+      "path": "/bot (regex ^/bot(/.*)?)",
+      "handler": "fetchIndexForAdminPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves admin SPA index (bot lander)",
+      "response_hint": "HTML",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/bot/install (regex ^/bot/install(/.*)?)",
+      "handler": "fetchIndexForAdminPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Admin SPA index; UNREACHABLE — shadowed by the earlier ^/bot(/.*)?  registration",
+      "response_hint": "HTML",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/bot/support (regex ^/bot/support(/.*)?)",
+      "handler": "fetchIndexForAdminPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Admin SPA index; UNREACHABLE — shadowed by the earlier ^/bot(/.*)? registration",
+      "response_hint": "HTML",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/cached/* (regex ^/cached/.*)",
+      "handler": "proxy in server/src/utils/domain.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Proxies cached static assets to the static file server",
+      "response_hint": "static asset",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/collectiveStatements/{report_id} (regex ^/collectiveStatements/r?[0-9][0-9A-Za-z]+(/.*)?)",
+      "handler": "inline wrapper -> fetchIndexForReportPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves report SPA index for the collective statements carousel",
+      "response_hint": "HTML",
+      "stability": "experimental",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/commentsReport/{report_id} (regex ^/commentsReport/r?[0-9][0-9A-Za-z]+(/.*)?)",
+      "handler": "inline wrapper -> fetchIndexForReportPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves report SPA index for LLM-generated group-topics comments report",
+      "response_hint": "HTML",
+      "stability": "experimental",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/company (regex ^/company$)",
+      "handler": "fetchIndexForAdminPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves admin SPA index (company page)",
+      "response_hint": "HTML",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/contrib (regex ^/contrib(/.*)?)",
+      "handler": "fetchIndexForAdminPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves admin SPA index (contributor agreement page, pairs with POST /api/v3/contributors)",
+      "response_hint": "HTML",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/conversation/create (regex ^/conversation/create(/.*)?)",
+      "handler": "fetchIndexWithoutPreloadData (closure from server/src/server.ts initializePolisHelpers)",
+      "auth": "none/public",
+      "params": [],
+      "description": "Serves the SPA index (no preload data) for the conversation-creation page; the actual creation happens via POST /api/v3/conversations.",
+      "response_hint": "200 text/html",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "conversations"
+    },
+    {
+      "method": "GET",
+      "path": "/conversations (regex ^/conversations(/.*)?)",
+      "handler": "fetchIndexForAdminPage (closure from server/src/server.ts initializePolisHelpers)",
+      "auth": "none/public (SPA handles auth client-side)",
+      "params": [],
+      "description": "Serves the admin dashboard SPA HTML for the conversations list page.",
+      "response_hint": "200 text/html (admin SPA)",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "conversations"
+    },
+    {
+      "method": "GET",
+      "path": "/createuser (regex ^/createuser(/.*)?)",
+      "handler": "fetchIndexForAdminPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves admin SPA index (account creation page shell)",
+      "response_hint": "HTML",
+      "stability": "admin",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/demo (regex ^/demo$)",
+      "handler": "fetchIndexForAdminPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves admin SPA index (demo lander; note /demo/{conversation_id} is a separate covered route)",
+      "response_hint": "HTML",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/demo/{conversation_id} (regex)",
+      "handler": "fetchIndexForConversation (server/src/conversation.ts)",
+      "auth": "none/public",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "path",
+          "required": true,
+          "type": "regex match"
+        }
+      ],
+      "description": "Demo-mode conversation view (used by the implicit-embed demo flag); serves the participation SPA.",
+      "response_hint": "200 text/html",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "conversations"
+    },
+    {
+      "method": "GET",
+      "path": "/dist/admin_bundle.js (regex ^/dist/admin_bundle.js$)",
+      "handler": "makeFileFetcher in server/src/utils/file-fetcher.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves the admin client JS bundle from the static file host",
+      "response_hint": "application/javascript",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/donate (regex ^/donate$)",
+      "handler": "fetchIndexForAdminPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves admin SPA index (donate page)",
+      "response_hint": "HTML",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/embed (regex ^/embed$)",
+      "handler": "makeFileFetcher('/embed.html') in server/src/utils/file-fetcher.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves the embed.js demo/host page for embedding conversations",
+      "response_hint": "HTML",
+      "stability": "core",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/embedPreprod (regex ^/embedPreprod$)",
+      "handler": "makeFileFetcher('/embedPreprod.html')",
+      "auth": "none",
+      "params": [],
+      "description": "Preprod variant of the embed host page",
+      "response_hint": "HTML",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/embedReport (regex ^/embedReport$)",
+      "handler": "makeFileFetcher('/embedReport.html')",
+      "auth": "none",
+      "params": [],
+      "description": "Serves the host page for embedding reports",
+      "response_hint": "HTML",
+      "stability": "core",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/embedReportPreprod (regex ^/embedReportPreprod$)",
+      "handler": "makeFileFetcher('/embedReportPreprod.html')",
+      "auth": "none",
+      "params": [],
+      "description": "Preprod variant of the report embed host page",
+      "response_hint": "HTML",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/explore/{conversation_id} (regex)",
+      "handler": "fetchIndexForConversation (server/src/conversation.ts)",
+      "auth": "none/public",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "path",
+          "required": true,
+          "type": "regex match"
+        }
+      ],
+      "description": "Power/explore view of a conversation; same index-with-preload HTML server as the main conversation view.",
+      "response_hint": "200 text/html",
+      "stability": "core",
+      "agent_relevance": "low",
+      "group": "conversations"
+    },
+    {
+      "method": "GET",
+      "path": "/exportReport/{report_id} (regex ^/exportReport/r?[0-9][0-9A-Za-z]+(/.*)?)",
+      "handler": "inline wrapper -> fetchIndexForReportPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves report SPA index for the data-export interface",
+      "response_hint": "HTML",
+      "stability": "experimental",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/feeds/:reportId",
+      "handler": "handle_GET_feeds_directory (server/src/routes/api/v3/feeds.ts), inline try/catch wrapper in app.ts",
+      "auth": "none/public",
+      "params": [
+        {
+          "name": "reportId",
+          "location": "path",
+          "required": true,
+          "type": "raw req.params string; validated via getZidFromReport (404 HTML if unknown)"
+        }
+      ],
+      "description": "HTML directory page listing the RSS feeds available for a report (consensus / topics), based on whether Delphi narrative data exists in DynamoDB.",
+      "response_hint": "HTML page (not JSON)",
+      "stability": "experimental",
+      "agent_relevance": "low",
+      "group": "reports-math"
+    },
+    {
+      "method": "GET",
+      "path": "/feeds/:reportId/consensus",
+      "handler": "handle_GET_consensus_feed (server/src/routes/api/v3/feeds.ts), inline try/catch wrapper in app.ts",
+      "auth": "none/public",
+      "params": [
+        {
+          "name": "reportId",
+          "location": "path",
+          "required": true,
+          "type": "raw req.params string"
+        }
+      ],
+      "description": "RSS 2.0 feed of consensus updates for a report, generated from Delphi narrative data.",
+      "response_hint": "application/rss+xml",
+      "stability": "experimental",
+      "agent_relevance": "low",
+      "group": "reports-math"
+    },
+    {
+      "method": "GET",
+      "path": "/feeds/:reportId/topics",
+      "handler": "handle_GET_topics_feed (server/src/routes/api/v3/feeds.ts), inline try/catch wrapper in app.ts",
+      "auth": "none/public",
+      "params": [
+        {
+          "name": "reportId",
+          "location": "path",
+          "required": true,
+          "type": "raw req.params string"
+        }
+      ],
+      "description": "RSS 2.0 feed of topic updates for a report, generated from Delphi topic data.",
+      "response_hint": "application/rss+xml",
+      "stability": "experimental",
+      "agent_relevance": "low",
+      "group": "reports-math"
+    },
+    {
+      "method": "GET",
+      "path": "/font/* (regex ^/font/.*)",
+      "handler": "proxy in server/src/utils/domain.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Proxies font assets (CORS-enabled via app.all middleware)",
+      "response_hint": "static asset",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/football (regex ^/football$)",
+      "handler": "makeRedirectorTo('/2arcefpshi') in server/src/utils/domain.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Hardcoded alias redirect to a specific historical conversation",
+      "response_hint": "302 redirect",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/gov (regex ^/gov(/.*)?)",
+      "handler": "fetchIndexForAdminPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves admin SPA index (government lander)",
+      "response_hint": "HTML",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/hk (regex ^/hk)",
+      "handler": "fetchIndexWithoutPreloadData in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves participation SPA index (legacy 'hk' path prefix)",
+      "response_hint": "HTML",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/hk/new (regex ^/hk/new)",
+      "handler": "fetchIndexWithoutPreloadData in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Participation SPA index; UNREACHABLE — shadowed by the earlier ^/hk registration",
+      "response_hint": "HTML",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/home (regex ^/home(/.*)?)",
+      "handler": "fetchIndexForAdminPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves admin SPA index as the marketing home page",
+      "response_hint": "HTML",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/iim/:conversation_id",
+      "handler": "handle_GET_iim_conversation (server/src/routes/conversations.ts)",
+      "auth": "none — moveToBody only",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "path",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "resolved to zid"
+        }
+      ],
+      "description": "Implicit-invite moderation stub: returns HTML with the conversation title, a link to it, a 'moderate' link, and the description (hardcoded pol.is host).",
+      "response_hint": "200 text/html snippet",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "conversations"
+    },
+    {
+      "method": "GET",
+      "path": "/iip/:conversation_id",
+      "handler": "handle_GET_iip_conversation (server/src/routes/conversations.ts)",
+      "auth": "none — moveToBody only",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "path",
+          "required": true,
+          "type": "getConversationIdFetchZid",
+          "description": "resolved to zid (validation only; handler uses the raw path param)"
+        }
+      ],
+      "description": "Implicit-invite participation stub: returns a tiny HTML anchor linking to https://pol.is/{conversation_id} (hardcoded pol.is host).",
+      "response_hint": "200 text/html anchor tag",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "conversations"
+    },
+    {
+      "method": "GET",
+      "path": "/inbox (regex ^/inbox(/.*)?$)",
+      "handler": "fetchIndexWithoutPreloadData in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves participation SPA index (inbox view)",
+      "response_hint": "HTML",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/inboxApiTest (regex ^/inboxApiTest)",
+      "handler": "fetchIndexWithoutPreloadData in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves participation SPA index (inbox API test page)",
+      "response_hint": "HTML",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/integrate (regex ^/integrate(/.*)?)",
+      "handler": "fetchIndexForAdminPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves admin SPA index (embed-integration instructions page)",
+      "response_hint": "HTML",
+      "stability": "admin",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/m/{conversation_id} (regex ^/m/[0-9][0-9A-Za-z]+(/.*)?)",
+      "handler": "fetchIndexForAdminPage (makeFileFetcher of index_admin.html) in server/src/server.ts",
+      "auth": "none (SPA handles auth)",
+      "params": [],
+      "description": "Serves the admin SPA index for the conversation moderation/management page",
+      "response_hint": "HTML",
+      "stability": "admin",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/nabi (regex ^/nabi$)",
+      "handler": "makeRedirectorTo('/8ufpzc6fkm') in server/src/utils/domain.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Hardcoded alias redirect to a specific historical conversation",
+      "response_hint": "302 redirect",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/narrativeReport/{report_id} (regex ^/narrativeReport/r?[0-9][0-9A-Za-z]+(/.*)?)",
+      "handler": "fetchIndexForReportPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves report SPA index for the LLM narrative report view",
+      "response_hint": "HTML",
+      "stability": "experimental",
+      "agent_relevance": "medium",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/ot/{conversation_id}/{suzinvite} (regex)",
+      "handler": "fetchIndexForConversation (server/src/conversation.ts)",
+      "auth": "none/public (single-use suzinvite token in the URL is the credential)",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "path",
+          "required": true,
+          "type": "regex match"
+        },
+        {
+          "name": "suzinvite",
+          "location": "path",
+          "required": false,
+          "type": "string",
+          "description": "single-use invite token appended to the path; these URLs are minted by GET /api/v3/conversations?xid=..."
+        }
+      ],
+      "description": "One-time-URL conversation view for xid-based single-use invites; serves the participation SPA.",
+      "response_hint": "200 text/html",
+      "stability": "core",
+      "agent_relevance": "low",
+      "group": "conversations"
+    },
+    {
+      "method": "GET",
+      "path": "/other-conversations (regex ^/other-conversations(/.*)?)",
+      "handler": "fetchIndexForAdminPage (closure from server/src/server.ts initializePolisHelpers)",
+      "auth": "none/public (SPA handles auth client-side)",
+      "params": [],
+      "description": "Serves the admin dashboard SPA HTML for the 'other conversations' page.",
+      "response_hint": "200 text/html (admin SPA)",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "conversations"
+    },
+    {
+      "method": "GET",
+      "path": "/pdf (regex ^/pdf$)",
+      "handler": "makeRedirectorTo('/23mymwyhkn') in server/src/utils/domain.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Hardcoded alias redirect to a specific historical conversation",
+      "response_hint": "302 redirect",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/perfStats_9182738127",
+      "handler": "handle_GET_perfStats in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Dumps in-RAM per-route performance metrics (obscured URL instead of auth)",
+      "response_hint": "JSON object of route timing metrics",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/polis_site_id.* (regex: /polis_site_id_XXX/{page_id})",
+      "handler": "handle_GET_implicit_conversation_generation (server/src/routes/implicitConversation.ts)",
+      "auth": "none — moveToBody only; authorization is knowledge of the site_id (looked up against users.site_id with site_owner=TRUE)",
+      "params": [
+        {
+          "name": "site_id",
+          "location": "path",
+          "required": true,
+          "type": "regex on req.path",
+          "description": "polis_site_id... segment of the URL"
+        },
+        {
+          "name": "page_id",
+          "location": "path",
+          "required": true,
+          "type": "regex on req.path",
+          "description": "second path segment; (site_id, page_id) uniquely identifies the implicit conversation"
+        },
+        {
+          "name": "parent_url",
+          "location": "query",
+          "required": true,
+          "type": "getStringLimitLength(1, 10000)",
+          "description": "URL of the embedding page; persisted on the conversation"
+        },
+        {
+          "name": "referrer",
+          "location": "query",
+          "required": false,
+          "type": "getStringLimitLength(1, 10000)",
+          "description": "passed through on redirect"
+        },
+        {
+          "name": "auth_needed_to_vote",
+          "location": "query",
+          "required": false,
+          "type": "getBool",
+          "description": "validated; not persisted here"
+        },
+        {
+          "name": "auth_needed_to_write",
+          "location": "query",
+          "required": false,
+          "type": "getBool",
+          "description": "validated; not persisted here"
+        },
+        {
+          "name": "auth_opt_allow_3rdparty",
+          "location": "query",
+          "required": false,
+          "type": "getBool",
+          "description": "persisted on the created conversation"
+        },
+        {
+          "name": "show_vis",
+          "location": "query",
+          "required": false,
+          "type": "getBool",
+          "description": "sets vis_type 1/0 on creation"
+        },
+        {
+          "name": "show_share",
+          "location": "query",
+          "required": false,
+          "type": "getBool"
+        },
+        {
+          "name": "bg_white",
+          "location": "query",
+          "required": false,
+          "type": "getBool",
+          "description": "sets bgcolor #fff on creation"
+        },
+        {
+          "name": "topic",
+          "location": "query",
+          "required": false,
+          "type": "getStringLimitLength(1, 1000)",
+          "description": "persisted on creation"
+        },
+        {
+          "name": "ucv",
+          "location": "query",
+          "required": false,
+          "type": "getBool",
+          "description": "embed UI flag, not persisted, forwarded on redirect (same for ucw/ucsh/ucst/ucsd/ucsv/ucsf)"
+        },
+        {
+          "name": "ucw",
+          "location": "query",
+          "required": false,
+          "type": "getBool"
+        },
+        {
+          "name": "ucsh",
+          "location": "query",
+          "required": false,
+          "type": "getBool"
+        },
+        {
+          "name": "ucst",
+          "location": "query",
+          "required": false,
+          "type": "getBool"
+        },
+        {
+          "name": "ucsd",
+          "location": "query",
+          "required": false,
+          "type": "getBool"
+        },
+        {
+          "name": "ucsv",
+          "location": "query",
+          "required": false,
+          "type": "getBool"
+        },
+        {
+          "name": "ucsf",
+          "location": "query",
+          "required": false,
+          "type": "getBool"
+        },
+        {
+          "name": "ui_lang",
+          "location": "query",
+          "required": false,
+          "type": "getStringLimitLength(1, 10)"
+        },
+        {
+          "name": "dwok",
+          "location": "query",
+          "required": false,
+          "type": "getStringLimitLength(1, 1000)"
+        },
+        {
+          "name": "xid",
+          "location": "query",
+          "required": false,
+          "type": "getStringLimitLength(1, 999)",
+          "description": "external participant id, forwarded on redirect"
+        },
+        {
+          "name": "subscribe_type",
+          "location": "query",
+          "required": false,
+          "type": "getStringLimitLength(1, 9)"
+        },
+        {
+          "name": "x_name",
+          "location": "query",
+          "required": false,
+          "type": "getStringLimitLength(1, 746)",
+          "description": "persisted later on vote/comment, not here"
+        },
+        {
+          "name": "x_profile_image_url",
+          "location": "query",
+          "required": false,
+          "type": "getStringLimitLength(1, 3000)"
+        },
+        {
+          "name": "x_email",
+          "location": "query",
+          "required": false,
+          "type": "getStringLimitLength(256)"
+        },
+        {
+          "name": "build",
+          "location": "query",
+          "required": false,
+          "type": "getStringLimitLength(300)"
+        }
+      ],
+      "description": "Implicit conversation creation for the embed flow: on first visit for a (site_id, page_id) pair, creates a conversation owned by the site owner (with sane defaults), emails the owner links, and 302-redirects to the conversation URL with embed params appended; subsequent visits just redirect.",
+      "response_hint": "302 redirect to /{conversation_id}?site_id=...&page_id=...&...; 404 polis_err_parsing_site_id_or_page_id; 500 polis_err_creating_conv",
+      "stability": "core",
+      "agent_relevance": "medium",
+      "group": "conversations"
+    },
+    {
+      "method": "GET",
+      "path": "/privacy (regex ^/privacy$)",
+      "handler": "fetchIndexForAdminPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves admin SPA index (privacy policy page)",
+      "response_hint": "HTML",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/pwreset (regex ^/pwreset.*)",
+      "handler": "fetchIndexForAdminPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves admin SPA index (password-reset completion page shell)",
+      "response_hint": "HTML",
+      "stability": "admin",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/pwresetinit (regex ^/pwresetinit.*)",
+      "handler": "fetchIndexForAdminPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves admin SPA index (password-reset request page shell)",
+      "response_hint": "HTML",
+      "stability": "admin",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/report/{report_id} (regex ^/report/r?[0-9][0-9A-Za-z]+(/.*)?)",
+      "handler": "fetchIndexForReportPage (makeFileFetcher of index_report.html) in server/src/server.ts",
+      "auth": "none (report_id knowledge = access)",
+      "params": [],
+      "description": "Serves the report SPA index for the standard analytics report; the shareable report URL",
+      "response_hint": "HTML",
+      "stability": "core",
+      "agent_relevance": "medium",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/report_bundle*.js (regex ^/report_bundle.*\\.js$)",
+      "handler": "proxy in server/src/utils/domain.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Proxies the report client JS bundle",
+      "response_hint": "application/javascript",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/report_style*.css (regex ^/report_style.*\\.css$)",
+      "handler": "proxy in server/src/utils/domain.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Proxies the report client CSS",
+      "response_hint": "text/css",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/robots.txt",
+      "handler": "inline function in server/app.ts (line 1165)",
+      "auth": "none",
+      "params": [],
+      "description": "Serves robots.txt disallowing /api/",
+      "response_hint": "plain text",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/s (regex ^/s$)",
+      "handler": "fetchIndexWithoutPreloadData in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves participation SPA index for /s",
+      "response_hint": "HTML",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/s/ (regex ^/s/)",
+      "handler": "fetchIndexWithoutPreloadData in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves participation SPA index for /s/ short paths",
+      "response_hint": "HTML",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/s/CTE (regex ^/s/CTE/?$)",
+      "handler": "makeFileFetcher('/football.html') on participation port",
+      "auth": "none",
+      "params": [],
+      "description": "Serves a static football.html page; UNREACHABLE — shadowed by the earlier ^/s/ registration",
+      "response_hint": "HTML",
+      "stability": "legacy",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/settings (regex ^/settings(/.*)?$)",
+      "handler": "makeFetchIndexWithoutPreloadData() closure in server/app.ts -> fetchIndex in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves the participation-client SPA index for the settings page",
+      "response_hint": "HTML",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/share/{conversation_id} (regex)",
+      "handler": "fetchIndexForConversation (server/src/conversation.ts)",
+      "auth": "none/public",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "path",
+          "required": true,
+          "type": "regex match"
+        }
+      ],
+      "description": "Share view of a conversation; same index-with-preload HTML.",
+      "response_hint": "200 text/html",
+      "stability": "core",
+      "agent_relevance": "low",
+      "group": "conversations"
+    },
+    {
+      "method": "GET",
+      "path": "/signin (regex ^/signin(/.*)?)",
+      "handler": "fetchIndexForAdminPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves admin SPA index (signin page shell)",
+      "response_hint": "HTML",
+      "stability": "admin",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/signout (regex ^/signout(/.*)?)",
+      "handler": "fetchIndexForAdminPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves admin SPA index (signout page shell)",
+      "response_hint": "HTML",
+      "stability": "admin",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/stats/{report_id} (regex ^/stats/r?[0-9][0-9A-Za-z]+(/.*)?)",
+      "handler": "fetchIndexForReportPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves report SPA index for the conversation stats view",
+      "response_hint": "HTML",
+      "stability": "core",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/styleguide (regex ^/styleguide$)",
+      "handler": "makeFileFetcher('/styleguide.html') on participation port",
+      "auth": "none",
+      "params": [],
+      "description": "Serves the static styleguide page",
+      "response_hint": "HTML",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/summary/{conversation_id} (regex)",
+      "handler": "fetchIndexForConversation (server/src/conversation.ts)",
+      "auth": "none/public",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "path",
+          "required": true,
+          "type": "regex match"
+        }
+      ],
+      "description": "Summary view of a conversation; same index-with-preload HTML.",
+      "response_hint": "200 text/html",
+      "stability": "core",
+      "agent_relevance": "low",
+      "group": "conversations"
+    },
+    {
+      "method": "GET",
+      "path": "/topicHierarchy/{report_id} (regex ^/topicHierarchy/r?[0-9][0-9A-Za-z]+(/.*)?)",
+      "handler": "inline wrapper -> fetchIndexForReportPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves report SPA index for circle-pack topic hierarchy visualization",
+      "response_hint": "HTML",
+      "stability": "experimental",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/topicMapNarrativeReport/{report_id} (regex ^/topicMapNarrativeReport/r?[0-9][0-9A-Za-z]+(/.*)?)",
+      "handler": "inline wrapper -> fetchIndexForReportPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves report SPA index for the topic-map narrative report",
+      "response_hint": "HTML",
+      "stability": "experimental",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/topicReport/{report_id} (regex ^/topicReport/r?[0-9][0-9A-Za-z]+(/.*)?)",
+      "handler": "inline wrapper -> fetchIndexForReportPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves report SPA index for individual topic reports with dropdown",
+      "response_hint": "HTML",
+      "stability": "experimental",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/topicStats/{report_id} (regex ^/topicStats/r?[0-9][0-9A-Za-z]+(/.*)?)",
+      "handler": "inline wrapper -> fetchIndexForReportPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves report SPA index for the topic stats view (pairs with GET /api/v3/topicStats)",
+      "response_hint": "HTML",
+      "stability": "experimental",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/topicsVizReport/{report_id} (regex ^/topicsVizReport/r?[0-9][0-9A-Za-z]+(/.*)?)",
+      "handler": "fetchIndexForReportPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves report SPA index for topics visualization report",
+      "response_hint": "HTML",
+      "stability": "experimental",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/tos (regex ^/tos$)",
+      "handler": "fetchIndexForAdminPage in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves admin SPA index (terms of service page)",
+      "response_hint": "HTML",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/user/create (regex ^/user/create(/.*)?$)",
+      "handler": "fetchIndexWithoutPreloadData in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves the participation-client SPA index (signup page shell)",
+      "response_hint": "HTML",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/user/login (regex ^/user/login(/.*)?$)",
+      "handler": "fetchIndexWithoutPreloadData in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves the participation-client SPA index (login page shell)",
+      "response_hint": "HTML",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/user/logout (regex ^/user/logout(/.*)?$)",
+      "handler": "fetchIndexWithoutPreloadData in server/src/server.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Serves the participation-client SPA index (logout page shell)",
+      "response_hint": "HTML",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/{anything}/ (regex /.*\\/, trailing slash)",
+      "handler": "inline function in server/app.ts (line 2173)",
+      "auth": "none",
+      "params": [],
+      "description": "Redirects trailing-slash URLs to the non-slash version, otherwise proxies",
+      "response_hint": "redirect or proxied asset",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/{catch-all} (regex ^/[^(api/)]?.*)",
+      "handler": "proxy in server/src/utils/domain.ts",
+      "auth": "none",
+      "params": [],
+      "description": "Final catch-all: proxies any remaining GET (non-API) to the static file server (missingFilesGet404 is hardcoded false, so no 404 page)",
+      "response_hint": "static asset",
+      "stability": "internal",
+      "agent_relevance": "low",
+      "group": "sweep-remainder"
+    },
+    {
+      "method": "GET",
+      "path": "/{conversation_id} (regex ^/[0-9][0-9A-Za-z]+(/.*)?)",
+      "handler": "fetchIndexForConversation (server/src/conversation.ts)",
+      "auth": "none/public",
+      "params": [
+        {
+          "name": "conversation_id",
+          "location": "path",
+          "required": true,
+          "type": "regex match [0-9][0-9A-Za-z]+",
+          "description": "zinvite extracted from the path"
+        }
+      ],
+      "description": "Serves the participation client index.html with the conversation's public preload data embedded (CDN-cacheable); 404 page if the conversation does not exist. This is the canonical share URL for participants.",
+      "response_hint": "200 text/html (participation SPA)",
+      "stability": "core",
+      "agent_relevance": "low",
+      "group": "conversations"
+    }
+  ]
+}

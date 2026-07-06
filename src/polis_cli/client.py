@@ -144,6 +144,26 @@ class PolisClient:
         self._raise_for_status(r, f"PUT {path}")
         return r
 
+    def call(self, method: str, path: str, *, query: dict | None = None, body: dict | None = None):
+        """Generic endpoint call used by the generated full-coverage commands.
+
+        Drops None values; returns parsed JSON when possible, else raw text.
+        """
+        query = {k: v for k, v in (query or {}).items() if v is not None}
+        body = {k: v for k, v in (body or {}).items() if v is not None}
+        r = self._http.request(
+            method,
+            f"{API}{path}" if not path.startswith("/api/") else path,
+            params=query or None,
+            json=body or None,
+            headers=self._headers(),
+        )
+        self._raise_for_status(r, f"{method} {path}")
+        try:
+            return r.json()
+        except ValueError:
+            return {"raw": r.text[:100000], "content_type": r.headers.get("content-type", "")}
+
     # ---------------------------------------------------------- conversations
 
     def create_conversation(self, topic: str, description: str = "", **settings: Any) -> dict:

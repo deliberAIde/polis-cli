@@ -20,6 +20,23 @@ app = typer.Typer(help=__doc__, no_args_is_help=True)
 convo_app = typer.Typer(help="Conversation lifecycle: create, open/close, status.")
 app.add_typer(convo_app, name="convo")
 
+# full-coverage generated surface: polis api <group> <command>
+api_app = typer.Typer(
+    help="Full generated API surface (one command per endpoint, from api/endpoints.json).",
+    no_args_is_help=True,
+)
+app.add_typer(api_app, name="api")
+try:
+    import importlib
+
+    from . import generated as _generated
+
+    for _group in _generated.GROUPS:
+        _mod = importlib.import_module(f".generated.{_group}", package=__package__)
+        api_app.add_typer(_mod.app, name=_group.replace("_", "-"))
+except ImportError:
+    pass  # generated modules absent until scripts/generate_commands.py has run
+
 console = Console()
 err_console = Console(stderr=True)
 

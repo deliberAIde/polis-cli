@@ -1,0 +1,3548 @@
+openapi: 3.1.0
+info:
+  title: Pol.is HTTP API (community-documented)
+  version: compdemocracy/polis stable@adce54b (2026-07-05)
+  description: 'Unofficial OpenAPI description of the Pol.is server API, extracted from source (compdemocracy/polis
+    stable@adce54b (2026-07-05)). Pol.is publishes no API contract; endpoints may change without notice. Auth: OIDC
+    bearer JWT (email claim required) on current builds; legacy builds use cookie-session via POST /api/v3/auth/login.'
+servers:
+- url: https://localhost
+  description: self-hosted instance
+paths:
+  /api/v3/all_conversations:
+    get:
+      operationId: get_all_conversations_list
+      summary: Server-operator-only paginated listing of ALL conversations on the instance with participant/comment
+        counts and owner_em
+      description: 'Handler: handle_GET_all_conversations (server/src/routes/conversations.ts). Auth: moveToBody,
+        hybridAuth(assignToP); handler requires isPolisDev(uid) (server-operator whitelist), else 403. Stability:
+        internal.'
+      tags:
+      - all_conversations
+      - internal
+      responses:
+        '200':
+          description: '200 JSON {conversations: [...], pagination: {limit, offset, total, ...}}; 403 polis_err_no_access_for_this_user'
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: default 50, capped at 500 by pagination helper
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: ''
+      - name: sort_by
+        in: query
+        required: false
+        schema:
+          type: string
+        description: created (default) | updated/modified | participant_count | comment_count
+      - name: sort_dir
+        in: query
+        required: false
+        schema:
+          type: string
+        description: asc | desc (default)
+      - name: owner_email
+        in: query
+        required: false
+        schema:
+          type: string
+        description: ILIKE substring match on owner email
+      - name: is_active
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: ''
+      - name: recently_updated_days
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: ''
+      - name: recently_created_days
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: ''
+      - name: min_comment_count
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: ''
+      - name: min_participant_count
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: ''
+  /api/v3/auth/deregister:
+    post:
+      operationId: create_auth_create_deregister
+      summary: 'JWT-era logout stub: server does nothing and always returns 200; the client is responsible for discarding
+        its JWT (and o'
+      description: 'Handler: handle_POST_auth_deregister_jwt in server/src/auth/routes.ts. Auth: none — registered
+        with no middleware at all (no auth, no param validators). Stability: core.'
+      tags:
+      - auth
+      - core
+      responses:
+        '200':
+          description: 'JSON {status: ''success'', message: ''Logout successful. Please remove your JWT token.''}'
+  /api/v3/bid:
+    get:
+      operationId: get_bid_list
+      summary: Returns the calling user's own base-cluster id (bid) in the conversation, computed by locating their
+        pid in the bidToPid
+      description: 'Handler: handle_GET_bid (server/src/routes/math.ts). Auth: moveToBody + hybridAuth(assignToP)
+        (requires signed-in user; resolves caller''s pid). Stability: core.'
+      tags:
+      - bid
+      - core
+      responses:
+        '200':
+          description: 'JSON {bid: number} or 304'
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: ''
+      - name: math_tick
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: ''
+  /api/v3/bidToPid:
+    get:
+      operationId: get_bidtopid_get_bidtopid
+      summary: 'Returns the full mapping of base-cluster index to participant ids for a conversation (marked in
+        source: ''TODO doesn''t sc'
+      description: 'Handler: handle_GET_bidToPid (server/src/routes/math.ts). Auth: hybridAuthOptional(assignToP)
+        + moveToBody. Stability: core.'
+      tags:
+      - bidtopid
+      - core
+      responses:
+        '200':
+          description: 'JSON {bidToPid: pid[][]} or 304'
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: ''
+      - name: math_tick
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: ''
+  /api/v3/collectiveStatement:
+    get:
+      operationId: get_collectivestatement_get_collectivestatement
+      summary: Fetches stored collective statement(s) from DynamoDB
+      description: 'Handler: handle_GET_collectiveStatement in server/src/routes/collectiveStatement.ts. Auth: none
+        (moveToBody only). Stability: experimental.'
+      tags:
+      - collectivestatement
+      - experimental
+      responses:
+        '200':
+          description: JSON array or single statement object
+      parameters:
+      - name: report_id
+        in: query
+        required: false
+        schema:
+          type: string
+        description: returns all statements for the conversation, deduplicated to latest per topic
+      - name: statement_id
+        in: query
+        required: false
+        schema:
+          type: string
+        description: fetch a single stored statement; one of report_id/statement_id required
+    post:
+      operationId: create_collectivestatement_create_collectivestatement
+      summary: Generates an LLM (Claude via Anthropic SDK) first-person-plural collective statement from high-consensus
+        comments of a t
+      description: 'Handler: handle_POST_collectiveStatement in server/src/routes/collectiveStatement.ts. Auth:
+        moveToBody, hybridAuth(assignToP); additionally requires req.p.delphiEnabled or fails Unauthorized. Stability:
+        experimental.'
+      tags:
+      - collectivestatement
+      - experimental
+      responses:
+        '200':
+          description: JSON with generated statement + statement key
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                report_id:
+                  type: string
+                  description: ''
+                topic_key:
+                  type: string
+                  description: ''
+                topic_name:
+                  type: string
+                  description: ''
+                qualifying_tids:
+                  type: string
+                  description: ''
+                group_consensus:
+                  type: string
+                  description: ''
+              required:
+              - report_id
+              - topic_key
+              - topic_name
+  /api/v3/comments:
+    get:
+      operationId: get_comments_list
+      summary: 'List a conversation''s comments; legacy bare-array response, or {comments, pagination} wrapper when
+        limit is passed (zid '
+      description: 'Handler: handle_GET_comments in server/src/routes/comments.ts. Auth: moveToBody, hybridAuthOptional(assignToP),
+        resolve_pidThing(''pid''). Stability: core.'
+      tags:
+      - comments
+      - core
+      responses:
+        '200':
+          description: 'JSON array of comment objects (tid, txt, created, mod, is_meta, ...); or {comments: [...],
+            pagination: {limit, offset, total, ...}} when limit given'
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: conversation to list comments for (resolved to internal zid)
+      - name: report_id
+        in: query
+        required: false
+        schema:
+          type: string
+        description: if given, each comment gets an includeInReport flag from report_comment_selections
+      - name: tids
+        in: query
+        required: false
+        schema:
+          type: string
+        description: restrict to specific comment ids
+      - name: moderation
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: include moderation fields/view (owner/moderator listing)
+      - name: mod
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: filter by exact moderation status (-1 rejected, 0 unmoderated, 1 accepted)
+      - name: modIn
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: true = comments participant-visible under current strict-mod setting, false = invisible ones
+      - name: mod_gt
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: filter comments with mod greater than this value
+      - name: include_voting_patterns
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: include agree/disagree/pass counts per comment
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: enables paginated response format; default 50, max 500
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: pagination offset (only with limit)
+    post:
+      operationId: create_comments_create
+      summary: Submit a new comment/statement; creates the participant if missing, runs profanity/toxicity moderation
+        (pro conversation
+      description: 'Handler: handle_POST_comments in server/src/routes/comments.ts. Auth: hybridAuthOptional(assignToP),
+        ensureParticipant({createIfMissing:true, issueJWT:true}), attachAuthToken(). Stability: core.'
+      tags:
+      - comments
+      - core
+      responses:
+        '200':
+          description: JSON {tid, currentPid} (+ auth token via middleware); 409 polis_err_post_comment_duplicate,
+            403 polis_err_conversation_is_closed
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: conversation to post into
+                txt:
+                  type: string
+                  description: the statement text (max 997 chars); duplicates within a conversation are rejected
+                    409
+                xid:
+                  type: string
+                  description: external identity id for SSO participants (processed before ensureParticipant)
+                vote:
+                  type: integer
+                  description: auto-vote on own comment (-1 agree, 0 pass, 1 disagree); seed comments default to
+                    0 if omitted
+                is_seed:
+                  type: boolean
+                  description: mark as seed statement; auto-approved regardless of moderation settings
+              required:
+              - conversation_id
+              - txt
+    put:
+      operationId: update_comments_update
+      summary: 'Moderate a comment: set active, mod status, and is_meta. Moderator/owner only.'
+      description: 'Handler: handle_PUT_comments in server/src/routes/comments.ts. Auth: moveToBody, hybridAuth(assignToP);
+        handler enforces isModerator (403 polis_err_update_comment_auth). Stability: admin.'
+      tags:
+      - comments
+      - admin
+      responses:
+        '200':
+          description: JSON {} on success
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: conversation the comment belongs to
+                tid:
+                  type: integer
+                  description: comment id to moderate
+                active:
+                  type: boolean
+                  description: whether the comment is active (shown to participants)
+                mod:
+                  type: integer
+                  description: moderation status (-1 rejected, 0 unmoderated, 1 accepted)
+                is_meta:
+                  type: boolean
+                  description: flag comment as meta (excluded from opinion math)
+                velocity:
+                  type: integer
+                  description: required by the validator chain but IGNORED by the handler (update touches only active/mod/is_meta)
+              required:
+              - conversation_id
+              - tid
+              - active
+              - mod
+              - is_meta
+              - velocity
+  /api/v3/comments-bulk:
+    post:
+      operationId: create_comments_bulk_create_comments_bulk
+      summary: Bulk-upload seed statements from CSV; moderator-only (403 polis_err_post_comment_auth otherwise);
+        per-row success/skip/e
+      description: 'Handler: handle_POST_comments_bulk in server/src/routes/comments.ts. Auth: hybridAuth(assignToP),
+        resolve_pidThing(''pid''). Stability: admin.'
+      tags:
+      - comments_bulk
+      - admin
+      responses:
+        '200':
+          description: 'JSON {results: [{txt, status: success|skipped|error, tid?, reason?, original_id?}], currentPid}'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: target conversation
+                csv:
+                  type: string
+                  description: CSV string with header row; columns comment_text and optional original_id; 400 polis_err_param_missing_csv
+                    if absent
+                is_seed:
+                  type: boolean
+                  description: treat all rows as seed statements (each gets a default pass vote)
+                xid:
+                  type: string
+                  description: external identity id
+              required:
+              - conversation_id
+              - csv
+  /api/v3/comments/translations:
+    get:
+      operationId: get_comments_get_translations
+      summary: Fetch stored translations of a comment for a language; if none exist, translates on demand (external
+        translate service),
+      description: 'Handler: handle_GET_comments_translations in server/src/routes/comments.ts. Auth: hybridAuth(assignToP).
+        Stability: core.'
+      tags:
+      - comments
+      - core
+      responses:
+        '200':
+          description: 'JSON array of comment_translations rows [{zid, tid, lang, txt, ...}]; 404 {error: ''Comment
+            not found''}'
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: conversation the comment belongs to
+      - name: tid
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: comment id — declared optional (want) but the handler dereferences it; effectively required
+          (404/500 without it)
+      - name: lang
+        in: query
+        required: false
+        schema:
+          type: string
+        description: target language code; matched on first 2 chars against stored translations; also effectively
+          required
+  /api/v3/contexts:
+    get:
+      operationId: get_contexts_list
+      summary: List all public context names (contexts group conversations; usable as the context filter on GET
+        /conversations).
+      description: 'Handler: handle_GET_contexts (closure in server/src/server.ts initializePolisHelpers, ~line
+        493). Auth: moveToBody, hybridAuthOptional(assignToP). Stability: legacy.'
+      tags:
+      - contexts
+      - legacy
+      responses:
+        '200':
+          description: 200 JSON array of {name} rows ordered by name
+    post:
+      operationId: create_contexts_create
+      summary: Create a new public context owned by the authenticated user; fails if the name already exists.
+      description: 'Handler: handle_POST_contexts (closure in server/src/server.ts initializePolisHelpers, ~line
+        511). Auth: hybridAuth(assignToP) — no moveToBody, param must be in JSON body. Stability: legacy.'
+      tags:
+      - contexts
+      - legacy
+      responses:
+        '200':
+          description: 200 JSON {}; 422 polis_err_post_context_exists
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: unique context name
+              required:
+              - name
+  /api/v3/contributors:
+    post:
+      operationId: create_contributors_create
+      summary: Records an open-source contributor-license-agreement signature and emails the team
+      description: 'Handler: handle_POST_contributors in server/src/server.ts. Auth: hybridAuthOptional(assignToP).
+        Stability: internal.'
+      tags:
+      - contributors
+      - internal
+      responses:
+        '200':
+          description: empty JSON {}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                agreement_version:
+                  type: integer
+                  description: ''
+                name:
+                  type: string
+                  description: ''
+                email:
+                  type: string
+                  description: ''
+                github_id:
+                  type: string
+                  description: ''
+                company_name:
+                  type: string
+                  description: ''
+              required:
+              - agreement_version
+              - name
+              - email
+              - github_id
+              - company_name
+  /api/v3/convSubscriptions:
+    post:
+      operationId: create_convsubscriptions_create_convsubscriptions
+      summary: Subscribe/unsubscribe the authenticated participant to new-statement email notifications for a conversation
+        (updates par
+      description: 'Handler: handle_POST_convSubscriptions in server/src/routes/notify.ts. Auth: hybridAuth(assignToP).
+        Stability: core.'
+      tags:
+      - convsubscriptions
+      - core
+      responses:
+        '200':
+          description: 'JSON object { subscribed: 0 | 1 }'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: conversation to (un)subscribe from
+                type:
+                  type: integer
+                  description: 1 = subscribe to email notifications, 0 = unsubscribe; anything else -> 400 polis_err_bad_subscription_type
+                email:
+                  type: string
+                  description: email to store in participants_extended.subscribe_email (used even for type=0, though
+                    ignored there)
+              required:
+              - conversation_id
+              - type
+              - email
+  /api/v3/conversation/close:
+    post:
+      operationId: create_conversation_create_close
+      summary: 'Close a conversation (sets is_active=false). BUG in this build: the handler never sends a success
+        response — only error '
+      description: 'Handler: handle_POST_conversation_close (server/src/routes/conversations.ts). Auth: moveToBody,
+        hybridAuth(assignToP); handler restricts to conversation owner (polis-dev bypasses). Stability: admin.'
+      tags:
+      - conversation
+      - admin
+      responses:
+        '200':
+          description: No response on success (request hangs / times out); 500 polis_err_closing_conversation* on
+            error. CLI should fire-and-verify via GET /conversations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: resolved to zid
+              required:
+              - conversation_id
+  /api/v3/conversation/reopen:
+    post:
+      operationId: create_conversation_create_reopen
+      summary: Reopen a closed conversation (sets is_active=true).
+      description: 'Handler: handle_POST_conversation_reopen (server/src/routes/conversations.ts). Auth: moveToBody,
+        hybridAuth(assignToP); handler restricts to conversation owner (polis-dev bypasses). Stability: admin.'
+      tags:
+      - conversation
+      - admin
+      responses:
+        '200':
+          description: 200 JSON {}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: resolved to zid
+              required:
+              - conversation_id
+  /api/v3/conversationStats:
+    get:
+      operationId: get_conversationstats_get_conversationstats
+      summary: 'Participation time-series and histograms for a conversation: every vote/comment timestamp, first-vote/first-comment
+        per '
+      description: 'Handler: handle_GET_conversationStats (server/src/routes/conversations.ts). Auth: moveToBody,
+        hybridAuthOptional(assignToP); handler requires isModerator OR a valid report_id (knowing report_id grants
+        access). Stability: admin.'
+      tags:
+      - conversationstats
+      - admin
+      responses:
+        '200':
+          description: 200 JSON {voteTimes, firstVoteTimes, commentTimes, firstCommentTimes, votesHistogram, burstHistogram}
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: resolved to zid
+      - name: report_id
+        in: query
+        required: false
+        schema:
+          type: string
+        description: grants read access without moderator rights
+      - name: until
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: only include comments/votes created before this ms timestamp
+  /api/v3/conversationUuid:
+    get:
+      operationId: get_conversationuuid_get_conversationuuid
+      summary: Get-or-create a persistent UUID for the conversation (stored on the zinvites row); used to give the
+        conversation a stabl
+      description: 'Handler: handle_GET_conversationUuid (server/src/routes/conversationUuid.ts). Auth: moveToBody,
+        hybridAuth(assignToP). Stability: experimental.'
+      tags:
+      - conversationuuid
+      - experimental
+      responses:
+        '200':
+          description: '200 JSON {conversation_uuid} — NOTE: failures also return HTTP 200 with {error: string}'
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: resolved to zid
+  /api/v3/conversations:
+    get:
+      operationId: get_conversations_list
+      summary: List conversations the user owns/co-admins (optionally participates in), list by context, or fetch
+        one conversation by c
+      description: 'Handler: handle_GET_conversations (server/src/routes/conversations.ts). Auth: moveToBody, hybridAuthOptional(assignToP).
+        Stability: core.'
+      tags:
+      - conversations
+      - core
+      responses:
+        '200':
+          description: 200 JSON array of conversation objects (single object when conversation_id given); 403 polis_err_need_auth
+            when neither auth, conversation_id, nor context is supplied
+      parameters:
+      - name: include_all_conversations_i_am_in
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: also include conversations the user participates in (not just site-admin/owned)
+      - name: is_active
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: filter
+      - name: is_draft
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: filter
+      - name: conversation_id
+        in: query
+        required: false
+        schema:
+          type: string
+        description: if given, returns that single conversation (works without login)
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: default 999 when listing
+      - name: context
+        in: query
+        required: false
+        schema:
+          type: string
+        description: list conversations in a context; '/' lists all public root conversations
+      - name: xid
+        in: query
+        required: false
+        schema:
+          type: string
+        description: if set, each conversation's url becomes a single-use /ot/ suzinvite URL for this external id
+    post:
+      operationId: create_conversations_create
+      summary: Create a conversation owned by the authenticated user (org_id defaults to uid, is_public forced true,
+        auth_needed_to_vot
+      description: 'Handler: handle_POST_conversations (server/src/routes/conversations.ts). Auth: hybridAuth(assignToP)
+        — NO moveToBody, params must be in JSON body. Stability: core.'
+      tags:
+      - conversations
+      - core
+      responses:
+        '200':
+          description: 200 JSON {url, conversation_id} (zid stripped by finishOne); 400 polis_err_conversation_id_already_in_use;
+            403 polis_err_add_conversation_not_enabled; 500 with Retry-After:0 on duplicate-key race
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                is_active:
+                  type: boolean
+                  description: default true
+                is_draft:
+                  type: boolean
+                  description: default false
+                is_anon:
+                  type: boolean
+                  description: default false
+                owner_sees_participation_stats:
+                  type: boolean
+                  description: default false
+                profanity_filter:
+                  type: boolean
+                  description: default true
+                short_url:
+                  type: boolean
+                  description: default false; generate a 6-char zinvite instead of 12
+                spam_filter:
+                  type: boolean
+                  description: default true
+                strict_moderation:
+                  type: boolean
+                  description: default false
+                context:
+                  type: string
+                  description: default ''; context (group) name to attach the conversation to
+                topic:
+                  type: string
+                  description: default ''
+                description:
+                  type: string
+                  description: default ''
+                conversation_id:
+                  type: string
+                  description: default ''; claim a previously reserved conversation_id (from POST /reserve_conversation_id);
+                    400 if already in use
+                is_data_open:
+                  type: boolean
+                  description: default false
+                ownerXid:
+                  type: string
+                  description: validated but unused by the handler in this build
+                treevite_enabled:
+                  type: boolean
+                  description: default false
+                topics_enabled:
+                  type: boolean
+                  description: default false
+    put:
+      operationId: update_conversations_update
+      summary: Update conversation settings (moderator-only); optionally regenerates a short zinvite and/or sends
+        the creation email; r
+      description: 'Handler: handle_PUT_conversations (server/src/routes/conversations.ts). Auth: moveToBody, hybridAuth(assignToP);
+        handler additionally requires isModerator(zid, uid). Stability: core.'
+      tags:
+      - conversations
+      - core
+      responses:
+        '200':
+          description: 200 (or 201 when short_url) JSON updated conversation object; 403 polis_err_update_conversation_permission
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: 'declared twice: resolves zid and keeps the string for URL building'
+                is_active:
+                  type: boolean
+                  description: ''
+                is_anon:
+                  type: boolean
+                  description: ''
+                is_draft:
+                  type: boolean
+                  description: DEFAULT false — omitted means it is actively reset to false
+                is_data_open:
+                  type: boolean
+                  description: DEFAULT false — reset to false when omitted
+                owner_sees_participation_stats:
+                  type: boolean
+                  description: DEFAULT false — reset to false when omitted
+                profanity_filter:
+                  type: boolean
+                  description: ''
+                short_url:
+                  type: boolean
+                  description: DEFAULT false; true regenerates the zinvite as a 6-char short id and returns 201
+                spam_filter:
+                  type: boolean
+                  description: ''
+                strict_moderation:
+                  type: boolean
+                  description: ''
+                topic:
+                  type: string
+                  description: ''
+                description:
+                  type: string
+                  description: ''
+                importance_enabled:
+                  type: boolean
+                  description: ''
+                vis_type:
+                  type: integer
+                  description: ''
+                help_type:
+                  type: integer
+                  description: ''
+                write_type:
+                  type: integer
+                  description: ''
+                bgcolor:
+                  type: string
+                  description: '''default'' clears to null'
+                help_color:
+                  type: string
+                  description: '''default'' clears to null'
+                help_bgcolor:
+                  type: string
+                  description: '''default'' clears to null'
+                style_btn:
+                  type: string
+                  description: ''
+                auth_needed_to_vote:
+                  type: boolean
+                  description: validated but IGNORED by the handler (never written)
+                auth_needed_to_write:
+                  type: boolean
+                  description: validated but IGNORED by the handler (never written)
+                auth_opt_allow_3rdparty:
+                  type: boolean
+                  description: ''
+                verifyMeta:
+                  type: boolean
+                  description: true = reject update unless every metadata question has at least one live answer
+                send_created_email:
+                  type: boolean
+                  description: sends the 'Conversation created' email with the share link (creation email deliberately
+                    happens on PUT, not POST)
+                context:
+                  type: string
+                  description: validated but not written by the handler in this build
+                link_url:
+                  type: string
+                  description: ''
+                subscribe_type:
+                  type: integer
+                  description: ''
+                treevite_enabled:
+                  type: boolean
+                  description: DEFAULT false — reset to false when omitted
+                topics_enabled:
+                  type: boolean
+                  description: DEFAULT false — reset to false when omitted
+                use_xid_whitelist:
+                  type: boolean
+                  description: ''
+                xid_required:
+                  type: boolean
+                  description: ''
+              required:
+              - conversation_id
+  /api/v3/conversations/preload:
+    get:
+      operationId: get_conversations_get_preload
+      summary: 'Public, cacheable conversation metadata used to preload the participation client: topic, description,
+        created, link_url,'
+      description: 'Handler: handle_GET_conversationPreloadInfo (server/src/routes/conversations.ts). Auth: moveToBody
+        only — public, no auth. Stability: core.'
+      tags:
+      - conversations
+      - core
+      responses:
+        '200':
+          description: 200 JSON single conversation-preload object with conversation_id echoed
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: ''
+  /api/v3/conversations/recent_activity:
+    get:
+      operationId: get_conversations_get_recent_activity
+      summary: 'Server-operator-only: raw conversations rows modified since the given time.'
+      description: 'Handler: handle_GET_conversationsRecentActivity (server/src/routes/conversations.ts). Auth:
+        hybridAuth(assignToP), moveToBody; handler requires isPolisDev(uid), else 403. Stability: internal.'
+      tags:
+      - conversations
+      - internal
+      responses:
+        '200':
+          description: 200 JSON array of raw conversations rows
+      parameters:
+      - name: sinceUnixTimestamp
+        in: query
+        required: false
+        schema:
+          type: string
+        description: seconds; default = last 7 days
+  /api/v3/conversations/recently_started:
+    get:
+      operationId: get_conversations_get_recently_started
+      summary: 'Server-operator-only: raw conversations rows created since the given time (unprocessed DB rows,
+        zid included).'
+      description: 'Handler: handle_GET_conversationsRecentlyStarted (server/src/routes/conversations.ts). Auth:
+        hybridAuth(assignToP), moveToBody; handler requires isPolisDev(uid), else 403. Stability: internal.'
+      tags:
+      - conversations
+      - internal
+      responses:
+        '200':
+          description: 200 JSON array of raw conversations rows
+      parameters:
+      - name: sinceUnixTimestamp
+        in: query
+        required: false
+        schema:
+          type: string
+        description: seconds; default = last 7 days
+  /api/v3/dataExport:
+    get:
+      operationId: get_dataexport_get_dataexport
+      summary: Queue an asynchronous data-export job (votes/comments dump) for the conversation via the math worker;
+        the result is uplo
+      description: 'Handler: handle_GET_dataExport (server/src/routes/dataExport.ts). Auth: moveToBody, hybridAuth(assignToP)
+        — no ownership check in the handler itself. Stability: admin.'
+      tags:
+      - dataexport
+      - admin
+      responses:
+        '200':
+          description: 200 JSON {} immediately (job queued); 500 polis_err_data_export123*
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: 'declared twice: resolves zid and keeps the string'
+      - name: format
+        in: query
+        required: false
+        schema:
+          type: string
+        description: export format passed to the math worker (e.g. csv)
+      - name: unixTimestamp
+        in: query
+        required: false
+        schema:
+          type: string
+        description: SECONDS; multiplied by 1000 server-side; NaN if omitted
+  /api/v3/dataExport/results:
+    get:
+      operationId: get_dataexport_get_dataexport_results
+      summary: Redirect to a pre-signed S3 URL (7-day expiry) for a previously generated export file in the polis-datadump
+        bucket.
+      description: 'Handler: handle_GET_dataExport_results (server/src/routes/dataExport.ts). Auth: moveToBody,
+        hybridAuth(assignToP). Stability: admin.'
+      tags:
+      - dataexport
+      - admin
+      responses:
+        '200':
+          description: 302 redirect to signed S3 URL
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: required by validators but UNUSED by the handler
+      - name: filename
+        in: query
+        required: false
+        schema:
+          type: string
+        description: S3 object name under {mathEnv}/ in bucket polis-datadump; effectively required
+  /api/v3/delphi:
+    get:
+      operationId: get_delphi_list
+      summary: Returns LLM-generated topic names for a conversation from DynamoDB table Delphi_CommentClustersLLMTopicNames,
+        grouped in
+      description: 'Handler: handle_GET_delphi (server/src/routes/delphi.ts). Auth: none/public (moveToBody only).
+        Stability: experimental.'
+      tags:
+      - delphi
+      - experimental
+      responses:
+        '200':
+          description: 'JSON {status, report_id, runs: {"model_YYYY-MM-DD": {...}}}; {runs:{}} if none'
+      parameters:
+      - name: report_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: ''
+  /api/v3/delphi/batchReports:
+    post:
+      operationId: create_delphi_create_batchreports
+      summary: Enqueues a CREATE_NARRATIVE_BATCH job in the DynamoDB Delphi_JobQueue to generate batch narrative
+        reports via the Anthro
+      description: 'Handler: handle_POST_delphi_batch_reports (server/src/routes/delphi/batchReports.ts), wrapped
+        in inline try/catch in app.ts. Auth: moveToBody + hybridAuth(assignToP); handler additionally requires JWT
+        claim delphi_enabled. Stability: experimental.'
+      tags:
+      - delphi
+      - experimental
+      responses:
+        '200':
+          description: JSON with job_id / status; errors often HTTP 200 {status:'error'}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                report_id:
+                  type: string
+                  description: ''
+                model:
+                  type: string
+                  description: ''
+                max_batch_size:
+                  type: string
+                  description: ''
+                no_cache:
+                  type: string
+                  description: ''
+                include_moderation:
+                  type: string
+                  description: ''
+              required:
+              - report_id
+  /api/v3/delphi/jobs:
+    post:
+      operationId: create_delphi_create_jobs
+      summary: Creates a Delphi ML job (UMAP/topic-modeling/narrative pipeline) by writing a PENDING item into the
+        DynamoDB Delphi_JobQ
+      description: 'Handler: handle_POST_delphi_jobs (server/src/routes/delphi/jobs.ts), wrapped in inline try/catch
+        in app.ts. Auth: moveToBody + hybridAuth(assignToP); handler additionally requires JWT claim delphi_enabled
+        (throws ''Unauthorized'' otherwise). Stability: experimental.'
+      tags:
+      - delphi
+      - experimental
+      responses:
+        '200':
+          description: JSON with created job info incl. job_id; errors may come back as HTTP 200 {status:'error'}
+            or 400
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                report_id:
+                  type: string
+                  description: ''
+                conversation_id:
+                  type: string
+                  description: ''
+                job_type:
+                  type: string
+                  description: ''
+                priority:
+                  type: string
+                  description: ''
+                include_moderation:
+                  type: string
+                  description: Ignore comments with failing moderation score
+  /api/v3/delphi/logs:
+    get:
+      operationId: get_delphi_get_logs
+      summary: Fetches CloudWatch log events for a Delphi job (filter pattern '[DELPHI JOB <first 8 chars of job_id>')
+        restricted to th
+      description: 'Handler: handle_GET_delphi_job_logs (server/src/routes/delphi.ts). Auth: none/public (moveToBody
+        only). Stability: internal.'
+      tags:
+      - delphi
+      - internal
+      responses:
+        '200':
+          description: JSON array of CloudWatch log events; 500 {status:'error'} on failure
+      parameters:
+      - name: job_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: ''
+  /api/v3/delphi/reports:
+    get:
+      operationId: get_delphi_get_reports
+      summary: Retrieves LLM-generated narrative report sections for a report from the DynamoDB Delphi_NarrativeReports
+        table (GSI Repo
+      description: 'Handler: handle_GET_delphi_reports (server/src/routes/delphi/reports.ts), wrapped in inline
+        try/catch in app.ts. Auth: none/public (moveToBody only). Stability: experimental.'
+      tags:
+      - delphi
+      - experimental
+      responses:
+        '200':
+          description: JSON {status, ...sections}; error conditions returned as HTTP 200 {status:'error', message}
+      parameters:
+      - name: report_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: ''
+      - name: section
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter to a specific narrative section
+      - name: topic_key
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter to a specific topic's report
+      - name: job_id
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Fetch sections from a specific Delphi job run
+  /api/v3/delphi/visualizations:
+    get:
+      operationId: get_delphi_get_visualizations
+      summary: Retrieves Delphi-generated visualization data (topic/cluster visualizations produced by the ML pipeline)
+        for a report fr
+      description: 'Handler: handle_GET_delphi_visualizations (server/src/routes/delphi/visualizations.ts), wrapped
+        in inline try/catch in app.ts. Auth: none/public (moveToBody only). Stability: experimental.'
+      tags:
+      - delphi
+      - experimental
+      responses:
+        '200':
+          description: JSON {status, report_id, ...visualization data}
+      parameters:
+      - name: report_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: ''
+      - name: job_id
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Specific job run's visualization data
+  /api/v3/domainWhitelist:
+    get:
+      operationId: get_domainwhitelist_get_domainwhitelist
+      summary: Fetch the embed domain whitelist (comma-separated string) for the authenticated user's site_id.
+      description: 'Handler: handle_GET_domainWhitelist in server/src/utils/domain.ts. Auth: moveToBody, hybridAuth(assignToP).
+        Stability: admin.'
+      tags:
+      - domainwhitelist
+      - admin
+      responses:
+        '200':
+          description: 'JSON object { domain_whitelist: string } (empty string if unset)'
+    post:
+      operationId: create_domainwhitelist_create_domainwhitelist
+      summary: Insert or update the embed domain whitelist for the authenticated user's site_id (controls which
+        third-party domains may
+      description: 'Handler: handle_POST_domainWhitelist in server/src/utils/domain.ts. Auth: hybridAuth(assignToP).
+        Stability: admin.'
+      tags:
+      - domainwhitelist
+      - admin
+      responses:
+        '200':
+          description: 'JSON object { domain_whitelist: string } echoing the new value'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                domain_whitelist:
+                  type: string
+                  description: comma-separated allowed embed domains; declared with need() but has default '' so
+                    effectively optional-with-empty-default
+              required:
+              - domain_whitelist
+  /api/v3/dummyButton:
+    get:
+      operationId: get_dummybutton_get_dummybutton
+      summary: 'Feature-interest tracker: emails the admin team that a dummy button was clicked, returns empty 200'
+      description: 'Handler: handle_GET_dummyButton in server/src/server.ts. Auth: hybridAuthOptional. Stability:
+        internal.'
+      tags:
+      - dummybutton
+      - internal
+      responses:
+        '200':
+          description: empty 200
+      parameters:
+      - name: button
+        in: query
+        required: true
+        schema:
+          type: string
+        description: label of the placeholder feature button that was clicked
+  /api/v3/einvites:
+    get:
+      operationId: get_einvites_list
+      summary: Look up an einvite token and return its row (used by the registration page to prefill the email);
+        500 polis_err_missing_
+      description: 'Handler: handle_GET_einvites in server/src/invites/routes.ts. Auth: none/public (moveToBody).
+        Stability: legacy.'
+      tags:
+      - einvites
+      - legacy
+      responses:
+        '200':
+          description: 'JSON object: the einvites row (email, einvite, created)'
+      parameters:
+      - name: einvite
+        in: query
+        required: true
+        schema:
+          type: string
+        description: einvite token from the emailed link
+    post:
+      operationId: create_einvites_create
+      summary: Generate a 30-char einvite token, store it in the einvites table, and email an account-signup invite
+        link to the address
+      description: 'Handler: handle_POST_einvites in server/src/invites/routes.ts (delegates to doSendEinvite in
+        server/src/invites/einvites.ts). Auth: none/public. Stability: legacy.'
+      tags:
+      - einvites
+      - legacy
+      responses:
+        '200':
+          description: JSON {} on success
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  description: address to send the account-creation invite to
+              required:
+              - email
+  /api/v3/joinWithInvite:
+    post:
+      operationId: create_joinwithinvite_create_joinwithinvite
+      summary: 'Joins a conversation via zid or single-use suzinvite, creating an anonymous user if there is no
+        existing auth; enforces '
+      description: 'Handler: handle_POST_joinWithInvite in server/src/auth/routes.ts. Auth: hybridAuthOptional(assignToP)
+        — anonymous allowed; creates an anonymous user and issues an anonymous JWT when unauthenticated. Stability:
+        core.'
+      tags:
+      - joinwithinvite
+      - core
+      responses:
+        '200':
+          description: JSON {pid, uid, token?, isAnonymous?}; 403 on polis_err_need_full_user / polis_err_xid_required
+            / polis_err_xid_not_allowed
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: Conversation to join; resolved to zid
+                suzinvite:
+                  type: string
+                  description: Single-use invite token; consumed (deleted) on successful join
+                answers:
+                  type: string
+                  description: pmaid choices for required metadata questions
+                referrer:
+                  type: string
+                  description: Referrer URL stored with the participant
+                parent_url:
+                  type: string
+                  description: Embedding page URL stored with the participant
+              required:
+              - conversation_id
+  /api/v3/locations:
+    get:
+      operationId: get_locations_list
+      summary: Returns lat/lng markers for participants in a given opinion group (participant_locations table; Facebook-era
+        geolocation
+      description: 'Handler: handle_GET_locations in server/src/server.ts. Auth: hybridAuthOptional(assignToP).
+        Stability: legacy.'
+      tags:
+      - locations
+      - legacy
+      responses:
+        '200':
+          description: JSON array of {lat,lng,n}
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: ''
+      - name: gid
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: opinion-group id
+  /api/v3/math/correlationMatrix:
+    get:
+      operationId: get_math_get_correlationmatrix
+      summary: Fetches the comment correlation matrix for a report from math_report_correlationmatrix; if absent,
+        enqueues a 'generate_
+      description: 'Handler: handle_GET_math_correlationMatrix (server/src/routes/math.ts). Auth: none/public (moveToBody;
+        knowing report_id acts as the capability). Stability: core.'
+      tags:
+      - math
+      - core
+      responses:
+        '200':
+          description: JSON matrix data (rows[0].data), or 202 {status:'pending'} / {status:'polis_report_needs_comment_selection'}
+      parameters:
+      - name: report_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Report whose correlation matrix to fetch
+      - name: math_tick
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Minimum math_tick of acceptable cached result
+  /api/v3/math/pca:
+    get:
+      operationId: get_math_get_pca
+      summary: 'Dead endpoint: clients were migrated off this path; unconditionally returns HTTP 304 with empty
+        body.'
+      description: 'Handler: handle_GET_math_pca (server/src/routes/math.ts). Auth: none/public (no middleware at
+        all). Stability: legacy.'
+      tags:
+      - math
+      - legacy
+      responses:
+        '200':
+          description: Always HTTP 304, empty body
+  /api/v3/math/pca2:
+    get:
+      operationId: get_math_get_pca2
+      summary: 'Primary math-results endpoint: returns the full PCA/clustering payload for a conversation (pca,
+        base-clusters, group-clu'
+      description: 'Handler: handle_GET_math_pca2 (server/src/routes/math.ts). Auth: none/public (moveToBody, redirectIfHasZidButNoConversationId;
+        no auth middleware). Stability: core.'
+      tags:
+      - math
+      - core
+      responses:
+        '200':
+          description: JSON object (gzip Content-Encoding unless keys filter given); Etag header = math_tick; 304
+            if unchanged/no results
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Conversation to fetch math results for
+      - name: math_tick
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Return results only if newer than this tick; mutually exclusive with If-None-Match header;
+          defaults to -1 (always return)
+      - name: keys
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter response to only these top-level keys of the math object (e.g. group-clusters, consensus,
+          repness)
+      - name: If-None-Match
+        in: query
+        required: false
+        schema:
+          type: string
+        description: ETag conditional fetch; parsed to a math_tick; 400 if combined with math_tick param
+  /api/v3/mathUpdate:
+    post:
+      operationId: create_mathupdate_create_mathupdate
+      summary: 'Moderator-only trigger: enqueues an ''update_math'' worker task so the math (Clojure) service recomputes
+        or updates cluste'
+      description: 'Handler: handle_POST_math_update (server/src/routes/math.ts). Auth: hybridAuth(assignToP) +
+        moveToBody; handler additionally requires isModerator(zid, uid). Stability: admin.'
+      tags:
+      - mathupdate
+      - admin
+      responses:
+        '200':
+          description: 200 {} on success; 500 'handle_POST_math_update_permission' if not moderator
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: ''
+                math_update_type:
+                  type: string
+                  description: 'Expected values: ''recompute'' or ''update'''
+              required:
+              - conversation_id
+              - math_update_type
+  /api/v3/metadata:
+    get:
+      operationId: get_metadata_list
+      summary: 'Fetch the combined metadata structure for a conversation: questions, answer options, and which participants
+        chose each a'
+      description: 'Handler: handle_GET_metadata in server/src/routes/metadata.ts. Auth: moveToBody, hybridAuth(assignToP).
+        Stability: admin.'
+      tags:
+      - metadata
+      - admin
+      responses:
+        '200':
+          description: 'JSON { kvp: {pmqid: {pmaid: [pid]}}, keys: {pmqid: key}, values: {pmaid: value} }; {} if
+            no questions'
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: conversation whose full metadata structure to fetch
+      - name: zinvite
+        in: query
+        required: false
+        schema:
+          type: string
+        description: conversation invite code; validated if provided
+      - name: suzinvite
+        in: query
+        required: false
+        schema:
+          type: string
+        description: single-use invite code; validated if provided
+  /api/v3/metadata/answers:
+    get:
+      operationId: get_metadata_get_answers
+      summary: List alive participant-metadata answer options for a conversation (each row returned with is_exclusive=true),
+        optionally
+      description: 'Handler: handle_GET_metadata_answers in server/src/routes/metadata.ts. Auth: moveToBody, hybridAuthOptional(assignToP).
+        Stability: core.'
+      tags:
+      - metadata
+      - core
+      responses:
+        '200':
+          description: JSON array of answer rows (pmaid, pmqid, zid, value, is_exclusive)
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: conversation whose answers to list
+      - name: pmqid
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: restrict to a single metadata question
+      - name: suzinvite
+        in: query
+        required: false
+        schema:
+          type: string
+        description: single-use invite code; validated before returning data if provided
+      - name: zinvite
+        in: query
+        required: false
+        schema:
+          type: string
+        description: conversation invite code; validated before returning data if provided
+    post:
+      operationId: create_metadata_create_answers
+      summary: Add an answer option to a metadata question (or revive a previously soft-deleted identical one);
+        conversation-owner-only
+      description: 'Handler: handle_POST_metadata_answers in server/src/routes/metadata.ts. Auth: moveToBody, hybridAuth(assignToP).
+        Stability: admin.'
+      tags:
+      - metadata
+      - admin
+      responses:
+        '200':
+          description: 'JSON object: the created/revived answer row (pmaid, pmqid, zid, value, ...)'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: conversation the question belongs to
+                pmqid:
+                  type: integer
+                  description: metadata question id to attach this answer option to
+                value:
+                  type: string
+                  description: answer option text
+              required:
+              - conversation_id
+              - pmqid
+              - value
+  /api/v3/metadata/answers/{pmaid}:
+    delete:
+      operationId: delete_metadata_delete_answers
+      summary: Soft-delete (alive=FALSE) a single participant-metadata answer; conversation-owner-only (checked
+        in handler).
+      description: 'Handler: handle_DELETE_metadata_answers in server/src/routes/metadata.ts. Auth: moveToBody,
+        hybridAuth(assignToP). Stability: admin.'
+      tags:
+      - metadata
+      - admin
+      responses:
+        '200':
+          description: 'JSON { success: true }'
+      parameters:
+      - name: pmaid
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v3/metadata/choices:
+    get:
+      operationId: get_metadata_get_choices
+      summary: List alive participant_metadata_choices rows (which participant picked which answer) for a conversation.
+      description: 'Handler: handle_GET_metadata_choices in server/src/routes/metadata.ts. Auth: moveToBody, hybridAuth(assignToP).
+        Stability: admin.'
+      tags:
+      - metadata
+      - admin
+      responses:
+        '200':
+          description: JSON array of choice rows (zid, pmqid, pmaid, pid, alive)
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: conversation whose participant choices to list
+  /api/v3/metadata/questions:
+    get:
+      operationId: get_metadata_get_questions
+      summary: List alive participant-metadata questions for a conversation (each row returned with required=true);
+        access gated by zin
+      description: 'Handler: handle_GET_metadata_questions in server/src/routes/metadata.ts. Auth: moveToBody, hybridAuthOptional(assignToP).
+        Stability: core.'
+      tags:
+      - metadata
+      - core
+      responses:
+        '200':
+          description: JSON array of question rows (pmqid, zid, key, required, ...)
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: conversation whose metadata questions to list
+      - name: suzinvite
+        in: query
+        required: false
+        schema:
+          type: string
+        description: single-use invite code; if provided, validated before returning data
+      - name: zinvite
+        in: query
+        required: false
+        schema:
+          type: string
+        description: conversation invite code; if provided, validated before returning data
+    post:
+      operationId: create_metadata_create_questions
+      summary: Create a participant-metadata question on a conversation; conversation-owner-only (checked in handler).
+      description: 'Handler: handle_POST_metadata_questions in server/src/routes/metadata.ts. Auth: moveToBody,
+        hybridAuth(assignToP). Stability: admin.'
+      tags:
+      - metadata
+      - admin
+      responses:
+        '200':
+          description: 'JSON object: the created question row (pmqid, zid, key, ...)'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                key:
+                  type: string
+                  description: question text/key (e.g. a demographic question)
+                conversation_id:
+                  type: string
+                  description: conversation to attach the question to
+              required:
+              - key
+              - conversation_id
+  /api/v3/metadata/questions/{pmqid}:
+    delete:
+      operationId: delete_metadata_delete_questions
+      summary: Soft-delete (alive=FALSE) a participant-metadata question and all its answers; conversation-owner-only
+        (checked in handl
+      description: 'Handler: handle_DELETE_metadata_questions in server/src/routes/metadata.ts. Auth: moveToBody,
+        hybridAuth(assignToP). Stability: admin.'
+      tags:
+      - metadata
+      - admin
+      responses:
+        '200':
+          description: 'JSON { success: true }'
+      parameters:
+      - name: pmqid
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v3/nextComment:
+    get:
+      operationId: get_nextcomment_get_nextcomment
+      summary: Get the next comment for the participant to vote on (priority-weighted, excludes already-voted and
+        'without' ids); 15s t
+      description: 'Handler: handle_GET_nextComment in server/src/routes/comments.ts. Auth: timeout(15000), moveToBody,
+        hybridAuthOptional(assignToP), resolve_pidThing(''not_voted_by_pid''), ensureParticipantOptional({createIfMissing:false,
+        issueJWT:false}), haltOnTimeout. Stability: core.'
+      tags:
+      - nextcomment
+      - core
+      responses:
+        '200':
+          description: JSON comment object {tid, txt, created, remaining, total, translations?, currentPid} or {currentPid}/{}
+            when no comments remain
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: conversation to draw the next unvoted comment from
+      - name: not_voted_by_pid
+        in: query
+        required: false
+        schema:
+          type: string
+        description: participant id to exclude already-voted comments for; normally resolved from auth (callers
+          can pass 'mypid')
+      - name: without
+        in: query
+        required: false
+        schema:
+          type: string
+        description: comment ids to exclude (e.g. currently displayed)
+      - name: lang
+        in: query
+        required: false
+        schema:
+          type: string
+        description: preferred language; translation attached if available
+  /api/v3/notifications/subscribe:
+    get:
+      operationId: get_notifications_get_subscribe
+      summary: Email-link target that sets participants.subscribed=1 for the user with that email in the conversation;
+        verifies HMAC si
+      description: 'Handler: handle_GET_notifications_subscribe in server/src/routes/notify.ts. Auth: none/public
+        (moveToBody; authenticated by HMAC signature param, not middleware). Stability: core.'
+      tags:
+      - notifications
+      - core
+      responses:
+        '200':
+          description: HTML page ('Subscribed!' with an unsubscribe link)
+      parameters:
+      - name: signature
+        in: query
+        required: true
+        schema:
+          type: string
+        description: HMAC-SHA1 of path+sorted params; secret is hardcoded in notify.ts
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: 'declared twice: one validator resolves zid, the other preserves the string for URL building;
+          client passes it once'
+      - name: email
+        in: query
+        required: true
+        schema:
+          type: string
+        description: email address of the participant to subscribe
+  /api/v3/notifications/unsubscribe:
+    get:
+      operationId: get_notifications_get_unsubscribe
+      summary: Email-link target that sets participants.subscribed=0 for the user with that email; verifies HMAC
+        signature, responds wi
+      description: 'Handler: handle_GET_notifications_unsubscribe in server/src/routes/notify.ts. Auth: none/public
+        (moveToBody; authenticated by HMAC signature param, not middleware). Stability: core.'
+      tags:
+      - notifications
+      - core
+      responses:
+        '200':
+          description: HTML page ('Unsubscribed.' with a re-subscribe link)
+      parameters:
+      - name: signature
+        in: query
+        required: true
+        schema:
+          type: string
+        description: HMAC-SHA1 of path+sorted params; secret hardcoded in notify.ts
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: declared twice (zid resolution + string preserved); client passes once
+      - name: email
+        in: query
+        required: true
+        schema:
+          type: string
+        description: email address of the participant to unsubscribe
+  /api/v3/notifyTeam:
+    post:
+      operationId: create_notifyteam_create_notifyteam
+      summary: Server-internal hook (used by sibling services) to email the admin team
+      description: 'Handler: handle_POST_notifyTeam in server/src/routes/notify.ts. Auth: none (shared-secret body
+        params webserver_username/webserver_pass checked against Config). Stability: internal.'
+      tags:
+      - notifyteam
+      - internal
+      responses:
+        '200':
+          description: empty JSON {}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                webserver_username:
+                  type: string
+                  description: ''
+                webserver_pass:
+                  type: string
+                  description: ''
+                subject:
+                  type: string
+                  description: ''
+                body:
+                  type: string
+                  description: ''
+              required:
+              - webserver_username
+              - webserver_pass
+              - subject
+              - body
+  /api/v3/participants:
+    get:
+      operationId: get_participants_list
+      summary: Returns the calling user's own participant row for the conversation (SELECT * FROM participants WHERE
+        uid AND zid), or n
+      description: 'Handler: handle_GET_participants in server/src/routes/participation.ts. Auth: moveToBody + hybridAuth(assignToP).
+        Stability: core.'
+      tags:
+      - participants
+      - core
+      responses:
+        '200':
+          description: JSON participant row or null
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Conversation whose participant record to fetch
+    post:
+      operationId: create_participants_create
+      summary: 'Joins the authenticated user to a conversation as a participant (idempotent: returns the existing
+        participant row if alr'
+      description: 'Handler: handle_POST_participants in server/src/routes/participation.ts. Auth: hybridAuth(assignToP)
+        — requires Authorization: Bearer <JWT> (OIDC, standard-user, anonymous, or XID JWT). Stability: core.'
+      tags:
+      - participants
+      - core
+      responses:
+        '200':
+          description: JSON participant row {pid, uid, zid, created, mod, vote_count, ...}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: Conversation to join; resolved to internal zid
+                answers:
+                  type: string
+                  description: Array of pmaid choices answering required participant-metadata questions
+                parent_url:
+                  type: string
+                  description: Embedding page URL, stored as extended participant info
+                referrer:
+                  type: string
+                  description: Referrer URL, stored as extended participant info
+              required:
+              - conversation_id
+  /api/v3/participants_extended:
+    put:
+      operationId: update_participants_extended_update
+      summary: Updates the caller's participants_extended row for a conversation (currently only the show_translation_activated
+        flag).
+      description: 'Handler: handle_PUT_participants_extended in server/src/routes/participation.ts. Auth: hybridAuth(assignToP).
+        Stability: core.'
+      tags:
+      - participants_extended
+      - core
+      responses:
+        '200':
+          description: JSON raw update result
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: Conversation whose extended participant row to update
+                show_translation_activated:
+                  type: boolean
+                  description: 'Currently the only updatable field: whether the participant enabled comment translation'
+              required:
+              - conversation_id
+  /api/v3/participation:
+    get:
+      operationId: get_participation_list
+      summary: 'Owner-only participation stats: per-participant vote and comment counts, keyed by pid, or re-keyed
+        by xid when xid recor'
+      description: 'Handler: handle_GET_participation in server/src/routes/participation.ts. Auth: moveToBody +
+        hybridAuth(assignToP); handler additionally enforces conversation ownership (403 polis_err_get_participation_auth).
+        Stability: admin.'
+      tags:
+      - participation
+      - admin
+      responses:
+        '200':
+          description: 'JSON map {pid_or_xid: {votes: n, comments: n}}'
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Conversation to summarize
+      - name: strict
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: If true, 409s when participants are missing xid mappings
+  /api/v3/participation/topicPrioritize:
+    get:
+      operationId: get_participation_get_topicprioritize
+      summary: 'Lightweight public check used by client-participation-alpha: reports whether the conversation has
+        a report (latest repor'
+      description: 'Handler: handle_GET_participation_topicPrioritize in server/src/routes/participation/topicPrioritize.ts.
+        Auth: none (public) — moveToBody only, no auth middleware. Stability: experimental.'
+      tags:
+      - participation
+      - experimental
+      responses:
+        '200':
+          description: JSON {status, conversation_id, has_report, has_delphi_data, report_id?, report_created?}
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Conversation to check for report/Delphi availability
+  /api/v3/participationInit:
+    get:
+      operationId: get_participationinit_get_participationinit
+      summary: 'One-shot bootstrap for the participation UI: returns user, participant record, conversation, own
+        votes, next comment to '
+      description: 'Handler: handle_GET_participationInit in server/src/routes/participation.ts. Auth: hybridAuthOptional(assignToP)
+        + denyIfNotFromWhitelistedDomain + ensureParticipantOptional({createIfMissing:false, issueJWT:true}). Stability:
+        core.'
+      tags:
+      - participationinit
+      - core
+      responses:
+        '200':
+          description: JSON {user, ptpt, nextComment, conversation, votes[], pca, famous, acceptLanguage, auth?}
+      parameters:
+      - name: conversation_id
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Conversation to bootstrap; without it only the user object is returned
+      - name: ptptoiLimit
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Max participants-of-interest in the famous block (default 30)
+      - name: includePCA
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: Set false to omit PCA math payload
+      - name: lang
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Preferred language for nextComment; 'acceptLang' uses the Accept-Language header
+      - name: domain_whitelist_override_key
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Bypass key for the embedding-domain whitelist check
+      - name: xid
+        in: query
+        required: false
+        schema:
+          type: string
+        description: External identity for xid-based participants
+  /api/v3/ptptCommentMod:
+    post:
+      operationId: create_ptptcommentmod_create_ptptcommentmod
+      summary: 'Participant crowdsourced moderation: records per-comment flags (spam/offtopic/important/etc.) into
+        crowd_mod table'
+      description: 'Handler: handle_POST_ptptCommentMod in server/src/routes/commentMod.ts. Auth: hybridAuth(assignToP)
+        + getPidForParticipant. Stability: legacy.'
+      tags:
+      - ptptcommentmod
+      - legacy
+      responses:
+        '200':
+          description: empty JSON {}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tid:
+                  type: integer
+                  description: ''
+                conversation_id:
+                  type: string
+                  description: ''
+                as_abusive:
+                  type: boolean
+                  description: ''
+                as_factual:
+                  type: boolean
+                  description: ''
+                as_feeling:
+                  type: boolean
+                  description: ''
+                as_important:
+                  type: boolean
+                  description: ''
+                as_notfact:
+                  type: boolean
+                  description: ''
+                as_notgoodidea:
+                  type: boolean
+                  description: ''
+                as_notmyfeeling:
+                  type: boolean
+                  description: ''
+                as_offtopic:
+                  type: boolean
+                  description: ''
+                as_spam:
+                  type: boolean
+                  description: ''
+                as_unsure:
+                  type: boolean
+                  description: ''
+              required:
+              - tid
+              - conversation_id
+  /api/v3/ptptois:
+    get:
+      operationId: get_ptptois_list
+      summary: 'Lists social ''participants of interest'' (participants with xid profile data: xid, x_name, x_profile_image_url,
+        pid, mod)'
+      description: 'Handler: handle_GET_ptptois in server/src/routes/participantsOfInterest.ts. Auth: moveToBody
+        + hybridAuthOptional(assignToP); full data only for owner, polis-dev, or is_data_open conversations (else
+        empty array). Stability: core.'
+      tags:
+      - ptptois
+      - core
+      responses:
+        '200':
+          description: JSON array of participant-of-interest objects
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Conversation whose participants-of-interest to list
+      - name: mod
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Filter by participant mod status
+    put:
+      operationId: update_ptptois_update
+      summary: Moderator sets a participant's mod status (UPDATE participants SET mod), hiding or showing them as
+        a participant-of-inte
+      description: 'Handler: handle_PUT_ptptois in server/src/routes/participantsOfInterest.ts. Auth: moveToBody
+        + hybridAuth(assignToP); handler enforces isModerator (403 polis_err_ptptoi_permissions_123). Stability:
+        admin.'
+      tags:
+      - ptptois
+      - admin
+      responses:
+        '200':
+          description: JSON {} on success
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mod:
+                  type: integer
+                  description: New mod status for the participant (controls visibility as participant-of-interest)
+                conversation_id:
+                  type: string
+                  description: Conversation containing the participant
+                pid:
+                  type: string
+                  description: Target participant; moderators pass the explicit pid to moderate
+              required:
+              - mod
+              - conversation_id
+  /api/v3/query_participants_by_metadata:
+    post:
+      operationId: create_query_participants_by_metadata_create
+      summary: Returns pids of participants whose metadata answers are not excluded by the given pmaid selection
+        (used to filter visual
+      description: 'Handler: handle_POST_query_participants_by_metadata in server/src/routes/participation.ts. Auth:
+        hybridAuth(assignToP); handler requires caller to be owner or participant of the conversation. Stability:
+        legacy.'
+      tags:
+      - query_participants_by_metadata
+      - legacy
+      responses:
+        '200':
+          description: JSON array of pids
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: Conversation to query
+                pmaids:
+                  type: string
+                  description: Checked metadata-answer ids; empty array returns []
+              required:
+              - conversation_id
+              - pmaids
+  /api/v3/reportCommentSelections:
+    post:
+      operationId: create_reportcommentselections_create_reportcommentselections
+      summary: Include/exclude a specific comment in a report's correlation-matrix analysis (upserts report_comment_selections)
+        and inv
+      description: 'Handler: handle_POST_reportCommentSelections (server/src/routes/reports.ts). Auth: hybridAuth(assignToP)
+        (no moveToBody — JSON body); handler requires isModerator(zid, uid), else 403. Stability: admin.'
+      tags:
+      - reportcommentselections
+      - admin
+      responses:
+        '200':
+          description: JSON {}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: ''
+                report_id:
+                  type: string
+                  description: ''
+                tid:
+                  type: integer
+                  description: Comment (statement) id
+                include:
+                  type: boolean
+                  description: true = selection 1 (include in report), false = -1 (exclude)
+              required:
+              - conversation_id
+              - report_id
+              - tid
+              - include
+  /api/v3/reportExport/{report_id}/{report_type}:
+    get:
+      operationId: get_reportexport_get_reportexport
+      summary: Streams a CSV data export for the report's conversation; the report_type selects which dataset (conversation
+        summary, co
+      description: 'Handler: handle_GET_reportExport (server/src/routes/export.ts). Auth: none/public (moveToBody;
+        report_id knowledge is the capability). Stability: core.'
+      tags:
+      - reportexport
+      - core
+      responses:
+        '200':
+          description: CSV file body
+      parameters:
+      - name: report_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: report_type
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v3/reportNarrative:
+    get:
+      operationId: get_reportnarrative_get_reportnarrative
+      summary: Streams an LLM-generated narrative report (group-informed consensus, uncertainty, topic sections)
+        for a report as a chun
+      description: 'Handler: handle_GET_reportNarrative (server/src/routes/reportNarrative.ts). Auth: hybridAuth(assignToP)
+        + moveToBody; additionally requires the JWT claim ''<authNamespace>delphi_enabled'' (req.p.delphiEnabled)
+        — otherwise fails with 503 polis_err_report_storage. Stability: experimental.'
+      tags:
+      - reportnarrative
+      - experimental
+      responses:
+        '200':
+          description: 'Chunked text/plain stream: POLIS-PING lines + narrative section payloads (not plain JSON);
+            503 JSON if storage/authz fails before streaming'
+      parameters:
+      - name: report_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: ''
+      - name: model
+        in: query
+        required: false
+        schema:
+          type: string
+        description: LLM vendor for narrative generation (openai / anthropic / gemini paths exist in the file)
+      - name: modelVersion
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Specific model version override
+      - name: noCache
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Skip the DynamoDB report_narrative_store cache
+  /api/v3/reports:
+    get:
+      operationId: get_reports_list
+      summary: Lists report objects. Internal rid/zid are stripped and replaced with the public conversation_id;
+        returns report_id, rep
+      description: 'Handler: handle_GET_reports (server/src/routes/reports.ts). Auth: moveToBody + hybridAuthOptional(assignToP);
+        knowing report_id grants view permission (comment in app.ts), conversation_id path requires isModerator,
+        no-params path lists reports for conversations the caller owns. Stability: core.'
+      tags:
+      - reports
+      - core
+      responses:
+        '200':
+          description: JSON array of report objects
+      parameters:
+      - name: conversation_id
+        in: query
+        required: false
+        schema:
+          type: string
+        description: List all reports for this conversation (moderator only). Mutually exclusive with report_id
+          (404 if both given)
+      - name: report_id
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Fetch a single report by public id; acts as an access capability
+    post:
+      operationId: create_reports_create
+      summary: 'Creates a new report for a conversation: generates a public report_id (''r'' + 20-char token) and
+        inserts into the reports'
+      description: 'Handler: handle_POST_reports (server/src/routes/reports.ts). Auth: hybridAuth(assignToP) (no
+        moveToBody — params must be in JSON body); handler requires isModerator(zid, uid). Stability: core.'
+      tags:
+      - reports
+      - core
+      responses:
+        '200':
+          description: JSON {} (the new report_id is NOT returned; fetch via GET /api/v3/reports?conversation_id=...)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: Declared with want() but effectively required — without it the moderator check fails
+                    with 403
+                mod_level:
+                  type: integer
+                  description: Moderation level stored on the report
+    put:
+      operationId: update_reports_update
+      summary: Updates a report's name and axis/group labels (only report_name and label_* columns are writable;
+        everything else is fil
+      description: 'Handler: handle_PUT_reports (server/src/routes/reports.ts). Auth: moveToBody + hybridAuth(assignToP);
+        handler requires isModerator(zid, uid). Stability: core.'
+      tags:
+      - reports
+      - core
+      responses:
+        '200':
+          description: JSON {}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: ''
+                report_id:
+                  type: string
+                  description: ''
+                report_name:
+                  type: string
+                  description: ''
+                label_x_neg:
+                  type: string
+                  description: ''
+                label_x_pos:
+                  type: string
+                  description: ''
+                label_y_neg:
+                  type: string
+                  description: ''
+                label_y_pos:
+                  type: string
+                  description: ''
+                label_group_0:
+                  type: string
+                  description: ''
+                label_group_1:
+                  type: string
+                  description: ''
+                label_group_2:
+                  type: string
+                  description: ''
+                label_group_3:
+                  type: string
+                  description: ''
+                label_group_4:
+                  type: string
+                  description: ''
+                label_group_5:
+                  type: string
+                  description: ''
+                label_group_6:
+                  type: string
+                  description: ''
+                label_group_7:
+                  type: string
+                  description: ''
+                label_group_8:
+                  type: string
+                  description: ''
+                label_group_9:
+                  type: string
+                  description: ''
+              required:
+              - conversation_id
+              - report_id
+  /api/v3/reserve_conversation_id:
+    post:
+      operationId: create_reserve_conversation_id_create
+      summary: 'Reserve a conversation_id (zinvite registered against zid=0) so the id/URL is known before the conversation
+        is created; '
+      description: 'Handler: handle_POST_reserve_conversation_id (server/src/routes/conversations.ts). Auth: hybridAuth(assignToP)
+        — no moveToBody; no params. Stability: core.'
+      tags:
+      - reserve_conversation_id
+      - core
+      responses:
+        '200':
+          description: 200 JSON {conversation_id}
+  /api/v3/sendCreatedLinkToEmail:
+    post:
+      operationId: create_sendcreatedlinktoemail_create_sendcreatedlinktoemail
+      summary: Email the authenticated user (looked up by uid) a link to the conversation they just created.
+      description: 'Handler: handle_POST_sendCreatedLinkToEmail in server/src/server.ts (inside initializePolisHelpers
+        closure). Auth: hybridAuth(assignToP). Stability: admin.'
+      tags:
+      - sendcreatedlinktoemail
+      - admin
+      responses:
+        '200':
+          description: JSON {} on success
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: 'declared twice: zid resolution plus the original string preserved for the emailed
+                    link; client passes once'
+              required:
+              - conversation_id
+  /api/v3/sendEmailExportReady:
+    post:
+      operationId: create_sendemailexportready_create_sendemailexportready
+      summary: Server-to-server hook (called by the export worker) that emails a user a download link when their
+        data export finishes.
+      description: 'Handler: handle_POST_sendEmailExportReady in server/src/server.ts (inside initializePolisHelpers
+        closure). Auth: none/public (validated in-handler against Config.webserverUsername/webserverPass - internal
+        service credential). Stability: internal.'
+      tags:
+      - sendemailexportready
+      - internal
+      responses:
+        '200':
+          description: JSON {} on success
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                webserver_username:
+                  type: string
+                  description: internal service username; must equal Config.webserverUsername or 403
+                webserver_pass:
+                  type: string
+                  description: internal service password; must equal Config.webserverPass or 403
+                email:
+                  type: string
+                  description: recipient of the export-ready email
+                conversation_id:
+                  type: string
+                  description: conversation id used to build the download URL (string only; no zid lookup)
+                filename:
+                  type: string
+                  description: export filename used in the /api/v3/dataExport/results download URL
+              required:
+              - webserver_username
+              - webserver_pass
+              - email
+              - conversation_id
+              - filename
+  /api/v3/stars:
+    post:
+      operationId: create_stars_create
+      summary: Record a star (favorite) on a comment for the calling participant; duplicate star for same comment
+        returns 406.
+      description: 'Handler: handle_POST_stars in server/src/routes/commentMod.ts. Auth: hybridAuth(assignToP),
+        getPidForParticipant(assignToP). Stability: legacy.'
+      tags:
+      - stars
+      - legacy
+      responses:
+        '200':
+          description: JSON {} on success; 406 polis_err_vote_duplicate on repeat
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: conversation the comment belongs to
+                tid:
+                  type: integer
+                  description: comment id to star/unstar
+                starred:
+                  type: integer
+                  description: 1 to star, 0 to unstar
+              required:
+              - conversation_id
+              - tid
+              - starred
+  /api/v3/testConnection:
+    get:
+      operationId: get_testconnection_get_testconnection
+      summary: Liveness check; always returns {status:'ok'}
+      description: 'Handler: handle_GET_testConnection in server/src/server.ts. Auth: none. Stability: internal.'
+      tags:
+      - testconnection
+      - internal
+      responses:
+        '200':
+          description: JSON {status:'ok'}
+  /api/v3/testDatabase:
+    get:
+      operationId: get_testdatabase_get_testdatabase
+      summary: DB health check; runs 'select uid from users limit 1' and returns {status:'ok'} or 500
+      description: 'Handler: handle_GET_testDatabase in server/src/server.ts. Auth: none. Stability: internal.'
+      tags:
+      - testdatabase
+      - internal
+      responses:
+        '200':
+          description: JSON {status:'ok'}
+  /api/v3/topicAgenda/selections:
+    delete:
+      operationId: delete_topicagenda_delete_topicagenda_selections
+      summary: Deletes the calling participant's topic-agenda selections for a conversation.
+      description: 'Handler: handle_DELETE_topicAgenda_selections (server/src/routes/delphi/topicAgenda.ts). Auth:
+        hybridAuth(assignToP) + moveToBody + ensureParticipant({createIfMissing:false, issueJWT:false}). Stability:
+        experimental.'
+      tags:
+      - topicagenda
+      - experimental
+      responses:
+        '200':
+          description: JSON
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: ''
+    get:
+      operationId: get_topicagenda_get_topicagenda_selections
+      summary: Returns the calling participant's own topic-agenda selections for a conversation.
+      description: 'Handler: handle_GET_topicAgenda_selections (server/src/routes/delphi/topicAgenda.ts). Auth:
+        hybridAuthOptional(assignToP) + moveToBody + ensureParticipantOptional({createIfMissing:false, issueJWT:false});
+        errors if caller has no participant record (pid missing/negative). Stability: experimental.'
+      tags:
+      - topicagenda
+      - experimental
+      responses:
+        '200':
+          description: JSON with the participant's selections
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: ''
+    post:
+      operationId: create_topicagenda_create_topicagenda_selections
+      summary: 'Participant-facing: records the calling participant''s topic-agenda selections for a conversation,
+        creating the participa'
+      description: 'Handler: handle_POST_topicAgenda_selections (server/src/routes/delphi/topicAgenda.ts). Auth:
+        hybridAuthOptional(assignToP) + moveToBody + ensureParticipant({createIfMissing:true, issueJWT:true}) +
+        attachAuthToken(). Stability: experimental.'
+      tags:
+      - topicagenda
+      - experimental
+      responses:
+        '200':
+          description: JSON; participant auth token attached to response
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: ''
+                selections:
+                  type: string
+                  description: The participant's chosen topics for the agenda
+              required:
+              - conversation_id
+              - selections
+    put:
+      operationId: update_topicagenda_update_topicagenda_selections
+      summary: Replaces/updates the calling participant's existing topic-agenda selections.
+      description: 'Handler: handle_PUT_topicAgenda_selections (server/src/routes/delphi/topicAgenda.ts). Auth:
+        hybridAuth(assignToP) + moveToBody + ensureParticipant({createIfMissing:false, issueJWT:false}). Stability:
+        experimental.'
+      tags:
+      - topicagenda
+      - experimental
+      responses:
+        '200':
+          description: JSON
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: ''
+                selections:
+                  type: string
+                  description: ''
+              required:
+              - conversation_id
+              - selections
+  /api/v3/topicMod/hierarchy:
+    get:
+      operationId: get_topicmod_get_topicmod_hierarchy
+      summary: Returns the multi-layer topic/cluster hierarchy for a conversation, structured from Delphi cluster
+        records across cluste
+      description: 'Handler: handle_GET_topicMod_hierarchy (server/src/routes/delphi/topicMod.ts). Auth: none/public
+        (moveToBody + need(conversation_id) only). Stability: experimental.'
+      tags:
+      - topicmod
+      - experimental
+      responses:
+        '200':
+          description: JSON {status, hierarchy, totalClusters, layers}
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: ''
+  /api/v3/topicMod/moderate:
+    post:
+      operationId: create_topicmod_create_topicmod_moderate
+      summary: Applies a moderation action (accept/reject/meta) to a whole topic and/or individual comments, upserting
+        DynamoDB Delphi_
+      description: 'Handler: handle_POST_topicMod_moderate (server/src/routes/delphi/topicMod.ts). Auth: none/public
+        (moveToBody + need(conversation_id) only — NO auth middleware; ''moderator'' is just a self-reported body
+        string). Stability: experimental.'
+      tags:
+      - topicmod
+      - experimental
+      responses:
+        '200':
+          description: JSON {status:'success', message, moderated_at}; validation errors as HTTP 200 {status:'error'}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: ''
+                action:
+                  type: string
+                  description: ''
+                moderator:
+                  type: string
+                  description: ''
+                topic_key:
+                  type: string
+                  description: If given, moderates the entire topic
+                comment_ids:
+                  type: string
+                  description: Individual comment ids to moderate instead of/in addition to a whole topic
+              required:
+              - conversation_id
+              - action
+              - moderator
+  /api/v3/topicMod/proximity:
+    get:
+      operationId: get_topicmod_get_topicmod_proximity
+      summary: Returns comment proximity data — UMAP coordinate points for the conversation's comments — for rendering
+        the topic-modera
+      description: 'Handler: handle_GET_topicMod_proximity (server/src/routes/delphi/topicMod.ts). Auth: none/public
+        (moveToBody + need(conversation_id) only). Stability: experimental.'
+      tags:
+      - topicmod
+      - experimental
+      responses:
+        '200':
+          description: 'JSON {status, proximity_data: [...], total_points}'
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: ''
+      - name: layer_id
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Restrict UMAP points to one clustering layer
+  /api/v3/topicMod/stats:
+    get:
+      operationId: get_topicmod_get_topicmod_stats
+      summary: 'Returns aggregate topic-moderation statistics for a conversation: counts of total topics and pending/accepted/rejected/m'
+      description: 'Handler: handle_GET_topicMod_stats (server/src/routes/delphi/topicMod.ts). Auth: none/public
+        (moveToBody + need(conversation_id) only). Stability: experimental.'
+      tags:
+      - topicmod
+      - experimental
+      responses:
+        '200':
+          description: 'JSON {status, stats: {total_topics, pending, accepted, rejected, meta}}'
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: ''
+  /api/v3/topicMod/topics:
+    get:
+      operationId: get_topicmod_get_topicmod_topics
+      summary: Lists Delphi-discovered topics for a conversation grouped by clustering layer, each annotated with
+        its moderation status
+      description: 'Handler: handle_GET_topicMod_topics (server/src/routes/delphi/topicMod.ts). Auth: none/public
+        (moveToBody + need(conversation_id) only — NO auth middleware). Stability: experimental.'
+      tags:
+      - topicmod
+      - experimental
+      responses:
+        '200':
+          description: JSON {status, topics_by_layer, total_topics}
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: ''
+      - name: job_id
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Restrict to topics from a specific Delphi job
+  /api/v3/topicMod/topics/{topicKey}/comments:
+    get:
+      operationId: get_topicmod_get_topicmod_topics_comments
+      summary: List comments assigned to a Delphi ML topic cluster (from DynamoDB Delphi_CommentClusters), with
+        UMAP coordinates and pe
+      description: 'Handler: handle_GET_topicMod_comments in server/src/routes/delphi/topicMod.ts. Auth: none/public
+        (only moveToBody + param validation; NO auth middleware in the chain). Stability: experimental.'
+      tags:
+      - topicmod
+      - experimental
+      responses:
+        '200':
+          description: 'JSON {status, message, comments: [{comment_id, comment_text, umap_x, umap_y, cluster_id,
+            layer_id, moderation_status}], total_comments}; errors come back as HTTP 200 with status:''error'''
+      parameters:
+      - name: topicKey
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: conversation whose Delphi comment clusters to query
+  /api/v3/topicStats:
+    get:
+      operationId: get_topicstats_get_topicstats
+      summary: Returns per-topic comment counts and comment tids from Delphi DynamoDB topic-cluster tables for a
+        report
+      description: 'Handler: handle_GET_topicStats in server/src/routes/topicStats.ts. Auth: none (moveToBody only).
+        Stability: experimental.'
+      tags:
+      - topicstats
+      - experimental
+      responses:
+        '200':
+          description: JSON {status, topics:[{topic_key, name, comment_count, comment_tids}]}
+      parameters:
+      - name: report_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: report id; resolved to zid via getZidFromReport
+  /api/v3/trashes:
+    post:
+      operationId: create_trashes_create
+      summary: Record a participant-side 'trash' flag on a comment (participant marks a comment as junk); insert-only,
+        duplicates retur
+      description: 'Handler: handle_POST_trashes in server/src/routes/commentMod.ts. Auth: hybridAuth(assignToP),
+        getPidForParticipant(assignToP). Stability: legacy.'
+      tags:
+      - trashes
+      - legacy
+      responses:
+        '200':
+          description: JSON {} on success; 406 polis_err_vote_duplicate on repeat
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: conversation the comment belongs to
+                tid:
+                  type: integer
+                  description: comment id to flag
+                trashed:
+                  type: integer
+                  description: 1 to trash, 0 to untrash
+              required:
+              - conversation_id
+              - tid
+              - trashed
+  /api/v3/treevite/acceptInvite:
+    post:
+      operationId: create_treevite_create_acceptinvite
+      summary: 'Redeem a treevite invite code: creates an anonymous user+participant if not already authenticated,
+        marks the invite used'
+      description: 'Handler: handle_POST_treevite_acceptInvite in server/src/invites/treevites.ts. Auth: moveToBody,
+        hybridAuthOptional(assignToP). Stability: experimental.'
+      tags:
+      - treevite
+      - experimental
+      responses:
+        '200':
+          description: '201 JSON { status: "ok", wave_id, invite_id, login_code, auth: { token, token_type: "Bearer",
+            expires_in } }'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: conversation the invite belongs to
+                invite_code:
+                  type: string
+                  description: unused (status=0) treevite invite code to redeem
+              required:
+              - conversation_id
+              - invite_code
+  /api/v3/treevite/invites:
+    get:
+      operationId: get_treevite_get_invites
+      summary: 'Paginated list of owner-generated (invite_owner_pid IS NULL) treevite invite codes for a conversation,
+        joined with wave '
+      description: 'Handler: handle_GET_treevite_invites in server/src/invites/treevites.ts. Auth: moveToBody, hybridAuth(assignToP).
+        Stability: experimental.'
+      tags:
+      - treevite
+      - experimental
+      responses:
+        '200':
+          description: 'JSON { invites: [rows], pagination: {limit, offset, total, ...} }'
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: conversation whose owner-generated treevite invites to list
+      - name: wave_id
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: filter to one treevite wave
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: filter by invite status (0=unused, 1=used)
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: page size; default 50, max 500
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: pagination offset
+  /api/v3/treevite/invites/csv:
+    get:
+      operationId: get_treevite_get_invites_csv
+      summary: 'Download all owner-generated treevite invite codes for a conversation as a CSV attachment (columns:
+        wave, invite_code, s'
+      description: 'Handler: handle_GET_treevite_invites_csv in server/src/invites/treevites.ts. Auth: moveToBody,
+        hybridAuth(assignToP). Stability: experimental.'
+      tags:
+      - treevite
+      - experimental
+      responses:
+        '200':
+          description: text/csv attachment
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: conversation whose owner invites to export
+  /api/v3/treevite/login:
+    post:
+      operationId: create_treevite_create_login
+      summary: Verifies a treevite login code (SHA-256 lookup + bcrypt compare) and issues a participant JWT for
+        re-entry
+      description: 'Handler: handle_POST_treevite_login in server/src/invites/treevites.ts. Auth: moveToBody, hybridAuthOptional(assignToP).
+        Stability: experimental.'
+      tags:
+      - treevite
+      - experimental
+      responses:
+        '200':
+          description: JSON {token, pid, ...}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: ''
+                login_code:
+                  type: string
+                  description: returning-participant login code issued at acceptInvite time
+              required:
+              - conversation_id
+              - login_code
+  /api/v3/treevite/me:
+    get:
+      operationId: get_treevite_get_me
+      summary: 'Returns the calling participant''s treevite status: the wave they entered through and their own
+        invite codes (nulls/empty'
+      description: 'Handler: handle_GET_treevite_me in server/src/invites/treevites.ts. Auth: moveToBody, hybridAuth(assignToP),
+        ensureParticipantOptional({createIfMissing:false,issueJWT:false}). Stability: experimental.'
+      tags:
+      - treevite
+      - experimental
+      responses:
+        '200':
+          description: JSON {participant, wave, invites}
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: ''
+  /api/v3/treevite/myInvites:
+    get:
+      operationId: get_treevite_get_myinvites
+      summary: 'List the calling participant''s own unused (status=0) treevite invite codes for a conversation;
+        returns [] if the caller '
+      description: 'Handler: handle_GET_treevite_myInvites in server/src/invites/treevites.ts. Auth: moveToBody,
+        hybridAuth(assignToP), ensureParticipantOptional({createIfMissing:false, issueJWT:false}). Stability: experimental.'
+      tags:
+      - treevite
+      - experimental
+      responses:
+        '200':
+          description: JSON array of { id, invite_code, status, created_at }
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: conversation to list the calling participant's invites for
+  /api/v3/treevite/myInvites/csv:
+    get:
+      operationId: get_treevite_get_myinvites_csv
+      summary: 'Download the calling participant''s own unused treevite invite codes as a CSV attachment (columns:
+        invite_code, status, c'
+      description: 'Handler: handle_GET_treevite_myInvites_csv in server/src/invites/treevites.ts. Auth: moveToBody,
+        hybridAuth(assignToP), ensureParticipantOptional({createIfMissing:false, issueJWT:false}). Stability: experimental.'
+      tags:
+      - treevite
+      - experimental
+      responses:
+        '200':
+          description: text/csv attachment
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: conversation to export the calling participant's invites for
+  /api/v3/treevite/waves:
+    get:
+      operationId: get_treevite_get_waves
+      summary: Lists treevite waves for a conversation (wave, parent_wave, invites_per_user, owner_invites, size,
+        timestamps)
+      description: 'Handler: handle_GET_treevite_waves in server/src/invites/treevites.ts. Auth: moveToBody, hybridAuth(assignToP).
+        Stability: experimental.'
+      tags:
+      - treevite
+      - experimental
+      responses:
+        '200':
+          description: JSON array of wave rows
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: ''
+      - name: wave
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: filter to a single wave number
+    post:
+      operationId: create_treevite_create_waves
+      summary: Creates the next tree-invite wave for a conversation and generates invite codes sized by the parent
+        wave
+      description: 'Handler: handle_POST_treevite_waves in server/src/invites/treevites.ts. Auth: moveToBody, hybridAuth(assignToP).
+        Stability: experimental.'
+      tags:
+      - treevite
+      - experimental
+      responses:
+        '200':
+          description: JSON wave object
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: ''
+                invites_per_user:
+                  type: integer
+                  description: invite codes generated per participant of the parent wave
+                owner_invites:
+                  type: integer
+                  description: extra owner-held invite codes; at least one of invites_per_user/owner_invites must
+                    be > 0
+                parent_wave:
+                  type: integer
+                  description: defaults to latest existing wave
+              required:
+              - conversation_id
+  /api/v3/tutorial:
+    post:
+      operationId: create_tutorial_create
+      summary: Persist the caller's UI tutorial progress step on their user record.
+      description: 'Handler: handle_POST_tutorial in server/src/server.ts. Auth: hybridAuth(assignToP). Stability:
+        internal.'
+      tags:
+      - tutorial
+      - internal
+      responses:
+        '200':
+          description: JSON {} on success
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                step:
+                  type: integer
+                  description: tutorial step number to persist (stored in users.tut)
+              required:
+              - step
+  /api/v3/upvotes:
+    post:
+      operationId: create_upvotes_create
+      summary: Upvote a conversation (once per user); updates conversations.upvotes counter
+      description: 'Handler: handle_POST_upvotes in server/src/routes/commentMod.ts. Auth: hybridAuth(assignToP).
+        Stability: legacy.'
+      tags:
+      - upvotes
+      - legacy
+      responses:
+        '200':
+          description: empty JSON {} or 403 if already upvoted
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: ''
+              required:
+              - conversation_id
+  /api/v3/users:
+    get:
+      operationId: get_users_list
+      summary: Returns the current user object for the JWT-authenticated caller (the API's 'whoami'); with xid+owner_uid
+        it resolves an
+      description: 'Handler: handle_GET_users in server/src/routes/users.ts. Auth: moveToBody + hybridAuthOptional(assignToP);
+        handler returns 401 ''Authentication required'' when no uid resolves. Stability: core.'
+      tags:
+      - users
+      - core
+      responses:
+        '200':
+          description: JSON user object (uid, email, hname, plan/site info, ...)
+      parameters:
+      - name: xid
+        in: query
+        required: false
+        schema:
+          type: string
+        description: External identity to look up (used together with owner_uid)
+      - name: owner_uid
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Owner uid scoping the xid lookup
+    put:
+      operationId: update_users_update
+      summary: Updates the caller's user record (email and/or display name); polis-dev users may update another
+        account via uid_of_user
+      description: 'Handler: handle_PUT_users in server/src/routes/users.ts. Auth: moveToBody + hybridAuth(assignToP);
+        uid_of_user honored only for polis-dev accounts. Stability: core.'
+      tags:
+      - users
+      - core
+      responses:
+        '200':
+          description: JSON raw update result
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  description: New email for the account
+                hname:
+                  type: string
+                  description: New display name
+                uid_of_user:
+                  type: integer
+                  description: Target uid to update (polis-dev only; otherwise ignored)
+  /api/v3/users/invite:
+    post:
+      operationId: create_users_create_invite
+      summary: Generates single-use suzinvite tokens, saves them, emails each address an invite link to the conversation,
+        and records t
+      description: 'Handler: handle_POST_users_invite in server/src/routes/users.ts. Auth: hybridAuth(assignToP)
+        (a commented-out authWithApiKey hints at a planned API-key path). Stability: admin.'
+      tags:
+      - users
+      - admin
+      responses:
+        '200':
+          description: 'JSON {status: ''success''}; 500 with polis_err_sending_invite family on failure'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: Conversation participants are invited to
+                emails:
+                  type: string
+                  description: Email addresses to invite (one single-use token each)
+              required:
+              - conversation_id
+              - emails
+  /api/v3/verify:
+    get:
+      operationId: get_verify_list
+      summary: 'Email-verification link target: marks the einvite''s email address as validated and renders a small
+        HTML confirmation pag'
+      description: 'Handler: handle_GET_verification in server/src/server.ts. Auth: none (moveToBody only). Stability:
+        core.'
+      tags:
+      - verify
+      - core
+      responses:
+        '200':
+          description: HTML page
+      parameters:
+      - name: e
+        in: query
+        required: true
+        schema:
+          type: string
+        description: einvite code from the verification email
+  /api/v3/votes:
+    get:
+      operationId: get_votes_list
+      summary: 'Get the latest unique votes of a single participant (per-comment dedup via votes_latest_unique),
+        optionally filtered to '
+      description: 'Handler: handle_GET_votes in server/src/routes/votes.ts. Auth: moveToBody, hybridAuthOptional(assignToP),
+        resolve_pidThing(''pid''). Stability: core.'
+      tags:
+      - votes
+      - core
+      responses:
+        '200':
+          description: JSON array of vote rows [{pid, tid, vote, ...}]; empty array when pid can't be resolved
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: conversation to read votes from
+      - name: tid
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: restrict to a single comment
+      - name: pid
+        in: query
+        required: false
+        schema:
+          type: string
+        description: participant whose votes to fetch; normally resolved from auth ('mypid'); returns [] if unresolved
+    post:
+      operationId: create_votes_create
+      summary: Cast a vote on a comment; creates the participant if missing, and returns the next comment to vote
+        on in the same respon
+      description: 'Handler: handle_POST_votes in server/src/routes/votes.ts. Auth: hybridAuthOptional(assignToP),
+        ensureParticipant({createIfMissing:true, issueJWT:true}), attachAuthToken(). Stability: core.'
+      tags:
+      - votes
+      - core
+      responses:
+        '200':
+          description: JSON {nextComment?, currentPid, modOptions?}; 406 polis_err_vote_duplicate, 403 polis_err_conversation_is_closed
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: conversation being voted in (403 if closed)
+                tid:
+                  type: integer
+                  description: comment id being voted on
+                vote:
+                  type: integer
+                  description: -1 agree (pull), 0 pass, 1 disagree (push)
+                xid:
+                  type: string
+                  description: external identity id (processed before ensureParticipant)
+                starred:
+                  type: boolean
+                  description: also star the comment in the same call
+                high_priority:
+                  type: boolean
+                  description: mark vote as high priority
+                lang:
+                  type: string
+                  description: preferred language for the returned nextComment
+              required:
+              - conversation_id
+              - tid
+              - vote
+  /api/v3/votes-bulk:
+    post:
+      operationId: create_votes_bulk_create_votes_bulk
+      summary: 'Async bulk vote import (bring-your-own-data): uploads CSV to S3, records a byod_import_jobs row,
+        and enqueues an SQS map'
+      description: 'Handler: handle_POST_votes_bulk in server/src/routes/votes.ts. Auth: hybridAuth(assignToP),
+        resolve_pidThing(''pid''); handler additionally requires req.p.delphiEnabled (OIDC ''delphi-enabled'' role)
+        — throws Unauthorized otherwise. Stability: experimental.'
+      tags:
+      - votes_bulk
+      - experimental
+      responses:
+        '200':
+          description: 'JSON {status: ''processing'', message: ''Vote import started...''}; work completes asynchronously'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: target conversation; must contain at least one comment with non-null original_id
+                    (else 400 polis_err_votes_bulk_no_mappable_comments)
+                csv:
+                  type: string
+                  description: CSV of external votes to import; 400 polis_err_param_missing_csv_votes if absent
+              required:
+              - conversation_id
+              - csv
+  /api/v3/votes/famous:
+    get:
+      operationId: get_votes_get_famous
+      summary: Get 'famous'/featured participants (participants-of-interest, authors of consensus comments) with
+        their vote vectors and
+      description: 'Handler: handle_GET_votes_famous in server/src/routes/votes.ts (doFamousQuery in server/src/server-helpers.ts).
+        Auth: moveToBody, hybridAuthOptional(assignToP). Stability: core.'
+      tags:
+      - votes
+      - core
+      responses:
+        '200':
+          description: JSON object keyed by pid with participant info + votes string + projection data
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: conversation to fetch featured participants for
+      - name: math_tick
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: math result version to align with
+      - name: ptptoiLimit
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: max participants-of-interest to return (default 30)
+  /api/v3/votes/me:
+    get:
+      operationId: get_votes_get_me
+      summary: Get the full vote history of the authenticated caller in a conversation (all rows from votes, weight
+        normalized from int
+      description: 'Handler: handle_GET_votes_me in server/src/routes/votes.ts. Auth: moveToBody, hybridAuth(assignToP).
+        Stability: core.'
+      tags:
+      - votes
+      - core
+      responses:
+        '200':
+          description: JSON array of vote rows including revotes [{zid?, pid, tid, vote, weight, created}]
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: conversation to read own votes from
+  /api/v3/xid/{xid_report}:
+    get:
+      operationId: get_xid_list
+      summary: Download a CSV summary of participant xids for a conversation identified by its UUID-based report
+        filename
+      description: 'Handler: handle_GET_xidReport in server/src/routes/export.ts. Auth: none (moveToBody only).
+        Stability: admin.'
+      tags:
+      - xid
+      - admin
+      responses:
+        '200':
+          description: CSV
+      parameters:
+      - name: xid_report
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v3/xidAllowList:
+    get:
+      operationId: get_xidallowlist_get_xidallowlist
+      summary: Moderator-only paginated view of the xid_whitelist for a conversation (including legacy owner-scoped
+        entries); each entr
+      description: 'Handler: handle_GET_xidAllowList in server/src/routes/xids.ts. Auth: moveToBody + hybridAuth(assignToP);
+        handler enforces isModerator. Stability: admin.'
+      tags:
+      - xidallowlist
+      - admin
+      responses:
+        '200':
+          description: 'JSON {xids: [{xid, pid|null}], pagination: {...}}'
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Conversation whose allow-list to read
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Page size (default 50, max 500)
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Records to skip
+    post:
+      operationId: create_xidallowlist_create_xidallowlist
+      summary: 'Adds xids to a conversation''s allow list (INSERT ... ON CONFLICT DO NOTHING); with replace_all=true
+        it synchronizes the '
+      description: 'Handler: handle_POST_xidAllowList in server/src/routes/xids.ts. Auth: hybridAuth(assignToP);
+        handler enforces isModerator. Stability: admin.'
+      tags:
+      - xidallowlist
+      - admin
+      responses:
+        '200':
+          description: JSON {} on success
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                xid_allow_list:
+                  type: string
+                  description: External identities to allow into the conversation
+                conversation_id:
+                  type: string
+                  description: Conversation whose allow-list to modify
+                replace_all:
+                  type: boolean
+                  description: If true, deletes existing allow-list entries not present in the incoming list (preserves
+                    kept entries and their pids)
+              required:
+              - xid_allow_list
+              - conversation_id
+  /api/v3/xidAllowList/csv:
+    get:
+      operationId: get_xidallowlist_get_xidallowlist_csv
+      summary: 'Moderator-only CSV export of the full xid allow list for a conversation: columns pid, xid.'
+      description: 'Handler: handle_GET_xidAllowList_csv in server/src/routes/xids.ts. Auth: moveToBody + hybridAuth(assignToP);
+        handler enforces isModerator. Stability: admin.'
+      tags:
+      - xidallowlist
+      - admin
+      responses:
+        '200':
+          description: text/csv attachment (filename xid_allow_list_<zid>_<timestamp>.csv)
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Conversation whose allow-list to export
+  /api/v3/xids:
+    get:
+      operationId: get_xids_list
+      summary: 'Moderator-only paginated list of external-identity (xid) records in use by participants of a conversation,
+        with pid and '
+      description: 'Handler: handle_GET_xids in server/src/routes/xids.ts. Auth: moveToBody + hybridAuth(assignToP);
+        handler enforces isModerator (403 polis_err_get_xids_not_authorized). Stability: admin.'
+      tags:
+      - xids
+      - admin
+      responses:
+        '200':
+          description: 'JSON {xids: [{pid, xid, vote_count}], pagination: {limit, offset, total, ...}}'
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Conversation whose xid mappings to list
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Page size (default 50, max 500)
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Records to skip
+  /api/v3/xids/csv:
+    get:
+      operationId: get_xids_get_csv
+      summary: 'Moderator-only CSV export (attachment download) of all in-use xid records for a conversation: columns
+        pid, xid, vote_cou'
+      description: 'Handler: handle_GET_xids_csv in server/src/routes/xids.ts. Auth: moveToBody + hybridAuth(assignToP);
+        handler enforces isModerator. Stability: admin.'
+      tags:
+      - xids
+      - admin
+      responses:
+        '200':
+          description: text/csv attachment (filename xids_in_use_<zid>_<timestamp>.csv)
+      parameters:
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Conversation whose xid mappings to export
+  /api/v3/zinvites/{zid}:
+    get:
+      operationId: get_zinvites_list
+      summary: List all zinvite (conversation share/invite) codes for a conversation; owner-only (SQL checks conversations.owner
+        = uid)
+      description: 'Handler: handle_GET_zinvites in server/src/server.ts (inside initializePolisHelpers closure).
+        Auth: moveToBody, hybridAuth(assignToP). Stability: admin.'
+      tags:
+      - zinvites
+      - admin
+      responses:
+        '200':
+          description: 'JSON object { codes: [zinvite rows] }'
+      parameters:
+      - name: zid
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: conversation_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: 'public conversation id; resolved to internal zid. Note: the :zid path segment is vestigial
+          - validation reads conversation_id, so pass it explicitly'
+    post:
+      operationId: create_zinvites_create
+      summary: Generate and register a new zinvite (share/invite) code for a conversation; owner-only.
+      description: 'Handler: handle_POST_zinvites in server/src/server.ts (inside initializePolisHelpers closure).
+        Auth: moveToBody, hybridAuth(assignToP). Stability: admin.'
+      tags:
+      - zinvites
+      - admin
+      responses:
+        '200':
+          description: 'JSON object { zinvite: string }'
+      parameters:
+      - name: zid
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                  description: public conversation id; resolved to internal zid. :zid path segment vestigial (see
+                    GET)
+                short_url:
+                  type: boolean
+                  description: generate a short-form zinvite code
+              required:
+              - conversation_id
