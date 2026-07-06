@@ -32,10 +32,13 @@ class PolisError(RuntimeError):
 class PolisClient:
     def __init__(self, profile: Profile, *, timeout: float = 30.0):
         self.profile = profile
+        # TLS: profiles may set verify=false (dev sandbox) or verify="/path/to/rootCA.pem"
+        verify = profile.extra.get("verify", True)
         self._http = httpx.Client(
             base_url=profile.base_url.rstrip("/"),
             timeout=timeout,
             follow_redirects=True,
+            verify=verify,
         )
         self._bearer: str | None = None
         self._restore_cached_auth()
@@ -177,11 +180,28 @@ class PolisClient:
     def get_conversation(self, conversation_id: str) -> dict:
         return self._get("/conversations", conversation_id=conversation_id).json()
 
+    def _fire_and_verify_lifecycle(self, path: str, conversation_id: str, want_active: bool) -> None:
+        """Upstream bug (stable@adce54b): close/reopen success paths never send an
+        HTTP response, so the request hangs. Fire with a short timeout, swallow the
+        hang, then verify the state actually changed via GET."""
+        try:
+            self._http.post(
+                f"{API}{path}",
+                json={"conversation_id": conversation_id},
+                headers=self._headers(),
+                timeout=5.0,
+            )
+        except httpx.TimeoutException:
+            pass  # expected on success (see docstring)
+        convo = self.get_conversation(conversation_id)
+        if bool(convo.get("is_active")) != want_active:
+            raise PolisError(f"{path} did not take effect (is_active={convo.get('is_active')})")
+
     def close_conversation(self, conversation_id: str) -> None:
-        self._post("/conversation/close", {"conversation_id": conversation_id})
+        self._fire_and_verify_lifecycle("/conversation/close", conversation_id, want_active=False)
 
     def reopen_conversation(self, conversation_id: str) -> None:
-        self._post("/conversation/reopen", {"conversation_id": conversation_id})
+        self._fire_and_verify_lifecycle("/conversation/reopen", conversation_id, want_active=True)
 
     # ------------------------------------------------------------- statements
 

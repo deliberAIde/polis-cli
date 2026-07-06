@@ -75,9 +75,18 @@ def profile_add(
     base_url: str,
     auth: str = typer.Option("password", help="password | oidc"),
     email: Optional[str] = None,
+    oidc_token_url: Optional[str] = typer.Option(None, help="OIDC issuer for token grants"),
+    oidc_client_id: Optional[str] = typer.Option(None),
+    no_verify_tls: bool = typer.Option(False, help="Disable TLS verification (dev sandboxes only)"),
 ):
     """Register an instance profile."""
-    save_profile(Profile(name=name, base_url=base_url, auth=auth, email=email))
+    extra = {"verify": False} if no_verify_tls else {}
+    save_profile(
+        Profile(
+            name=name, base_url=base_url, auth=auth, email=email,
+            oidc_token_url=oidc_token_url, oidc_client_id=oidc_client_id, extra=extra,
+        )
+    )
     _emit({"profile": name, "base_url": base_url, "auth": auth, "status": "saved"})
 
 
@@ -96,11 +105,17 @@ def login(
     email = client.profile.email or typer.prompt("email")
     password = password or typer.prompt("password", hide_input=True)
     try:
-        client.login_password(email, password)
+        if client.profile.auth == "oidc":
+            client.login_oidc_password_grant(
+                email, password, verify_tls=client.profile.extra.get("verify", True)
+            )
+            _emit({"profile": profile, "auth": "oidc", "status": "token cached"})
+        else:
+            client.login_password(email, password)
+            _emit({"profile": profile, "auth": "password", "status": "session cached"})
     except PolisError as e:
         err_console.print(f"[red]{e}[/red]")
         raise typer.Exit(1) from e
-    _emit({"profile": profile, "auth": "password", "status": "session cached"})
 
 
 # -------------------------------------------------------------- conversation
@@ -199,10 +214,12 @@ def export(
     client = _client(profile)
     reports = client.list_reports(conversation_id)
     if not reports:
-        report = client.create_report(conversation_id)
-        report_id = report.get("report_id") or report.get("rid")
-    else:
-        report_id = reports[0].get("report_id") or reports[0].get("rid")
+        client.create_report(conversation_id)  # create returns no body; re-list for the id
+        reports = client.list_reports(conversation_id)
+    if not reports:
+        err_console.print("[red]no report available for this conversation[/red]")
+        raise typer.Exit(1)
+    report_id = reports[0].get("report_id") or reports[0].get("rid")
     out_dir.mkdir(parents=True, exist_ok=True)
     written = []
     for kind in ("comments", "votes", "participant-votes", "comment-groups", "summary"):
