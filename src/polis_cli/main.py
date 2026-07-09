@@ -173,10 +173,12 @@ def seed(
 ):
     """Bulk-seed statements into a conversation."""
     client = _client(profile)
+    # One statement per line. Read lines directly (NOT csv.reader, which would
+    # split a statement at its first comma and keep only the leading fragment).
     lines = [
-        row[0].strip()
-        for row in csv.reader(statements_file.read_text(encoding="utf-8").splitlines())
-        if row and row[0].strip()
+        line.strip()
+        for line in statements_file.read_text(encoding="utf-8").splitlines()
+        if line.strip()
     ]
     results = []
     for text in lines:

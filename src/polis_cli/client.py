@@ -34,11 +34,15 @@ class PolisClient:
         self.profile = profile
         # TLS: profiles may set verify=false (dev sandbox) or verify="/path/to/rootCA.pem"
         verify = profile.extra.get("verify", True)
+        # Optional outbound proxy (e.g. Voxit dev env only exposes a SOCKS5 gateway;
+        # set proxy="socks5h://127.0.0.1:1080" so *.voxit.internal resolves at the proxy).
+        proxy = profile.extra.get("proxy") or None
         self._http = httpx.Client(
             base_url=profile.base_url.rstrip("/"),
             timeout=timeout,
             follow_redirects=True,
             verify=verify,
+            proxy=proxy,
         )
         self._bearer: str | None = None
         self._restore_cached_auth()
