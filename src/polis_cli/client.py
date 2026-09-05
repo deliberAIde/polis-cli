@@ -53,20 +53,30 @@ class PolisClient:
         cred = load_cached_credential(self.profile.name)
         if token := cred.get("bearer"):
             self._bearer = token
+        # Scope restored cookies to the instance host so a fresh Set-Cookie from the
+        # server *replaces* them in the jar instead of sitting next to them (two
+        # `token2` cookies -> httpx CookieConflict on every lookup).
+        host = httpx.URL(self.profile.base_url).host
         for name, value in cred.get("cookies", {}).items():
-            self._http.cookies.set(name, value)
+            self._http.cookies.set(name, value, domain=host)
+
+    def _cookie_snapshot(self) -> dict[str, str]:
+        # Walk the jar directly: dict(self._http.cookies) raises CookieConflict when
+        # the same name exists for more than one domain.
+        return {c.name: c.value for c in self._http.cookies.jar if c.value is not None}
 
     def _persist_auth(self) -> None:
         save_cached_credential(
             self.profile.name,
             {
                 "bearer": self._bearer or "",
-                "cookies": dict(self._http.cookies),
+                "cookies": self._cookie_snapshot(),
             },
         )
 
     def login_password(self, email: str, password: str) -> None:
         """Legacy session login (stable-branch instances, likely Voxit)."""
+        self._http.cookies.clear()  # a fresh login must not carry a stale session
         r = self._http.post(f"{API}/auth/login", json={"email": email, "password": password})
         if r.status_code == 404:
             raise PolisError(

@@ -61,6 +61,12 @@ def test_full_loop(client, httpx_mock):
         json={"group-clusters": [{"id": 0}, {"id": 1}], "n": 3},
     )
     httpx_mock.add_response(method="POST", url=f"{base}/conversation/close", json={})
+    # close/reopen are fire-and-verify (upstream never answers the POST), so the
+    # client always follows up with a GET to confirm the state actually changed.
+    httpx_mock.add_response(
+        method="GET", url=f"{base}/conversations?conversation_id=3jwxyz",
+        json={"conversation_id": "3jwxyz", "is_active": False},
+    )
     httpx_mock.add_response(method="POST", url=f"{base}/reports", json={"report_id": "r9abc"})
     for kind in ("comments", "votes", "participant-votes", "comment-groups", "summary"):
         httpx_mock.add_response(
