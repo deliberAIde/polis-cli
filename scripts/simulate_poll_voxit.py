@@ -28,6 +28,8 @@ RUN = os.environ.get("VOXIT_RUN_TAG", "poll1")
 WORKERS = int(os.environ.get("VOXIT_WORKERS", "3"))
 random.seed(2030)
 FLIP_NOISE, PASS_PROB, SKIP_PROB = 0.12, 0.06, 0.03
+FIRST_VOTE_PAUSE = float(os.environ.get("VOXIT_FIRST_VOTE_PAUSE", "2.0"))
+VOTE_GAP = float(os.environ.get("VOXIT_VOTE_GAP", "0.4"))
 
 # tid -> [green, car, business, accessibility]
 STANCES = {
@@ -36,6 +38,10 @@ STANCES = {
     12: "PAAA", 13: "ADDP", 14: "PAPA", 15: "PAAA", 16: "APPA", 17: "DAAP",
     18: "APPA", 19: "AAAA",
 }
+# A fresh statement set (new conversation, new tids) needs its own map: point
+# VOXIT_STANCES_FILE at a JSON object {"<tid>": "<4-letter stance>", ...}.
+if os.environ.get("VOXIT_STANCES_FILE"):
+    STANCES = {int(k): v for k, v in json.loads(Path(os.environ["VOXIT_STANCES_FILE"]).read_text(encoding="utf-8")).items()}
 
 
 def new_client():
@@ -78,7 +84,12 @@ def one_voter(i, tids):
     if su.status_code >= 400:
         c.post("/api/v3/auth/login", json={"email": email, "password": "Vox!tCrowd1"})
     cast = 0
-    for tid in tids:
+    # Polis creates the participant row asynchronously on a user's FIRST vote; a second
+    # vote arriving within ~1 s races that insert and crashes polis-server with
+    # "duplicate key ... participants_extended_zid_uid_key" (seen 2026-09-06). Humans
+    # never vote that fast, so pace the simulator: a pause after the first vote and a
+    # short gap between the rest.
+    for n, tid in enumerate(tids):
         st = STANCES.get(tid)
         if not st:
             continue
@@ -91,6 +102,7 @@ def one_voter(i, tids):
                 cast += 1
         except Exception:
             pass
+        time.sleep(FIRST_VOTE_PAUSE if n == 0 else VOTE_GAP)
     c.close()
     return cast
 
