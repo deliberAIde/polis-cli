@@ -32,7 +32,8 @@ PORT = 8787
 # container reaches this at host.docker.internal:8787 WITHOUT exposing an
 # arbitrary-prompt RCE endpoint to the wider local network.
 HOST = "127.0.0.1"
-CLAUDE = shutil.which("claude") or r"C:\Users\lukas\.local\bin\claude"
+# Path to the Claude Code CLI; set CLAUDE_BIN if it is not on PATH.
+CLAUDE = os.environ.get("CLAUDE_BIN") or shutil.which("claude") or "claude"
 CALL_TIMEOUT_S = 420
 
 

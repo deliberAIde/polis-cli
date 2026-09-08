@@ -25,10 +25,16 @@ from simulate_project import ARCHETYPES, STANCE_VOTE  # noqa
 BASE = os.environ.get("VOXIT_BASE", "https://polis.voxit.internal")
 PROXY = os.environ.get("VOXIT_PROXY", "socks5h://127.0.0.1:1080") or None
 VERIFY = "voxit.internal" not in BASE
-CID = os.environ.get("VOXIT_CID") or Path(r"C:\Users\lukas\dev\civic-agent-demo\voxit_poll_cid.txt").read_text().strip()
+# Conversation id: VOXIT_CID, or VOXIT_CID_FILE pointing at a file that holds it.
+_cid_file = os.environ.get("VOXIT_CID_FILE")
+CID = os.environ.get("VOXIT_CID") or (Path(_cid_file).read_text().strip() if _cid_file else "")
+if not CID:
+    raise SystemExit("set VOXIT_CID=<conversation id> (or VOXIT_CID_FILE=<path to a file holding it>)")
 N = int(os.environ.get("N_VOTERS", "40"))
 RUN = os.environ.get("VOXIT_RUN_TAG", "poll1")
 WORKERS = int(os.environ.get("VOXIT_WORKERS", "3"))
+# Throwaway password for the simulated accounts this script creates itself.
+SIM_PASSWORD = os.environ.get("VOXIT_SIM_PASSWORD", "s1m-" + str(random.randint(10**9, 10**10 - 1)))
 random.seed(2030)
 FLIP_NOISE, PASS_PROB, SKIP_PROB = 0.12, 0.06, 0.03
 FIRST_VOTE_PAUSE = float(os.environ.get("VOXIT_FIRST_VOTE_PAUSE", "2.0"))
@@ -83,9 +89,9 @@ def one_voter(i, tids):
     c = new_client()
     email = f"v{RUN}-{i:03d}@voxit.local"
     su = c.post("/api/v3/auth/new", json={"hname": f"Voter {i}", "email": email,
-                                          "password": "Vox!tCrowd1", "gatekeeperTosPrivacy": True})
+                                          "password": SIM_PASSWORD, "gatekeeperTosPrivacy": True})
     if su.status_code >= 400:
-        c.post("/api/v3/auth/login", json={"email": email, "password": "Vox!tCrowd1"})
+        c.post("/api/v3/auth/login", json={"email": email, "password": SIM_PASSWORD})
     cast = 0
     # Polis creates the participant row asynchronously on a user's FIRST vote; a second
     # vote arriving within ~1 s races that insert and crashes polis-server with

@@ -34,4 +34,26 @@ The upstream Pol.is repo (cloned separately, e.g. `../polis` — **not** part of
 - [ ] Phase 3 — Azure Container Apps disposable-instance template (public demo)
 - [ ] Phase 4 — MCP twin (same commands as MCP tools)
 
-*License: TBD. All rights reserved for now.*
+## Install
+
+```bash
+pip install polis-cli          # command: polis
+```
+
+## Part of the civic tech agent-bridges toolkit
+
+`polis-cli` is one bridge in the [civic tech agent-bridges toolkit](https://github.com/deliberAIde/civic-tech-agent-bridges): open-source
+command-line clients that let any AI agent drive a civic-tech platform through its own API, so
+platforms interoperate without waiting for a standards process. Sibling bridges: [consul-cli](https://github.com/deliberAIde/consul-cli) (CONSUL DEMOCRACY), [decidim-cli](https://github.com/deliberAIde/decidim-cli) (Decidim), [deliberaide-cli](https://pypi.org/project/deliberaide-cli/) (deliberAIde).
+
+## Relationship to upstream
+
+This is an independent client. It contains no Pol.is or Voxit source code and speaks only to the
+documented HTTP API of a running instance. deliberAIde offers it to the Pol.is and Voxit community for
+adoption; the Apache-2.0 licence is chosen so the code can be vendored into AGPL-3.0 (Pol.is) or EUPL-1.2 (Voxit)
+repositories without friction, since permissive code can be combined into copyleft ones but not
+the other way round.
+
+## Licence
+
+Apache-2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE). Copyright 2026 deliberAIde.
