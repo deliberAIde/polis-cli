@@ -20,8 +20,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import httpx  # noqa
 from simulate_project import ARCHETYPES, STANCE_VOTE  # noqa
 
-BASE = "https://polis.voxit.internal"
-PROXY = "socks5h://127.0.0.1:1080"
+# Local ARM stack by default; the hosted instance needs no proxy:
+#   VOXIT_BASE=https://consulcon-polis.germanywestcentral.cloudapp.azure.com VOXIT_PROXY= ...
+BASE = os.environ.get("VOXIT_BASE", "https://polis.voxit.internal")
+PROXY = os.environ.get("VOXIT_PROXY", "socks5h://127.0.0.1:1080") or None
+VERIFY = "voxit.internal" not in BASE
 CID = os.environ.get("VOXIT_CID") or Path(r"C:\Users\lukas\dev\civic-agent-demo\voxit_poll_cid.txt").read_text().strip()
 N = int(os.environ.get("N_VOTERS", "40"))
 RUN = os.environ.get("VOXIT_RUN_TAG", "poll1")
@@ -45,7 +48,7 @@ if os.environ.get("VOXIT_STANCES_FILE"):
 
 
 def new_client():
-    return httpx.Client(proxy=PROXY, verify=False, base_url=BASE, timeout=45, follow_redirects=True)
+    return httpx.Client(proxy=PROXY, verify=VERIFY, base_url=BASE, timeout=45, follow_redirects=True)
 
 
 def pick_archetype(i):
