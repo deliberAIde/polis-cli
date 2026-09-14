@@ -40,8 +40,8 @@ def create_comments_create(
     conversation_id: str = typer.Option(..., "--conversation-id", help="conversation to post into"),
     txt: str = typer.Option(..., "--txt", help="the statement text (max 997 chars); duplicates within a conversation are rejected 409"),
     xid: Optional[str] = typer.Option(None, "--xid", help="external identity id for SSO participants (processed before ensureParticipant)"),
-    vote: Optional[int] = typer.Option(None, "--vote", help="auto-vote on own comment (-1 agree, 0 pass, 1 disagree); seed comments default to 0 if omi"),
-    is_seed: Optional[bool] = typer.Option(None, "--is-seed", help="mark as seed statement; auto-approved regardless of moderation settings"),
+    vote: Optional[int] = typer.Option(None, "--vote", help="auto-vote on own statement: -1 agree, 0 pass, 1 disagree; omit (and omit --is-seed) for no"),
+    is_seed: Optional[bool] = typer.Option(None, "--is-seed", help="mark as seed statement; auto-approved regardless of moderation, and the server records a d"),
     profile: str = typer.Option("local", "--profile", "-p"),
 ):
     client = get_client(profile)

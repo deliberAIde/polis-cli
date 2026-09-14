@@ -219,8 +219,18 @@ class PolisClient:
 
     # ------------------------------------------------------------- statements
 
-    def seed_comment(self, conversation_id: str, text: str) -> dict:
-        payload = {"conversation_id": conversation_id, "txt": text, "is_seed": True}
+    def seed_comment(self, conversation_id: str, text: str, author_vote: bool = True) -> dict:
+        """Submit a statement as the authenticated (moderator) user.
+
+        With ``author_vote`` (the default) the statement is flagged ``is_seed`` and the
+        server records a default *pass* vote by the author, so the author shows up as a
+        participant with one vote per statement. With ``author_vote=False`` the flag is
+        omitted: a moderator's statement is auto-approved either way (server: ``is_seed ||
+        is_moderator``), but without ``is_seed`` and without an explicit ``vote`` the server
+        casts nothing, so the conversation starts with zero votes and zero voters."""
+        payload = {"conversation_id": conversation_id, "txt": text}
+        if author_vote:
+            payload["is_seed"] = True
         return self._post("/comments", payload).json()
 
     def list_comments(self, conversation_id: str, moderation: bool = False) -> list[dict]:
@@ -230,7 +240,19 @@ class PolisClient:
         return self._get("/comments", **params).json()
 
     def moderate_comment(self, conversation_id: str, tid: int, accept: bool) -> dict:
-        payload = {"conversation_id": conversation_id, "tid": tid, "mod": 1 if accept else -1}
+        """Accept (mod=1, active) or reject (mod=-1, inactive) one statement.
+
+        The server's PUT /comments requires ``active``, ``mod``, ``is_meta`` and ``velocity``
+        together; sending only ``mod`` is answered with HTTP 400 (found in rehearsal,
+        2026-09-14). ``velocity`` is the statement's display weight, 1 = normal."""
+        payload = {
+            "conversation_id": conversation_id,
+            "tid": tid,
+            "active": bool(accept),
+            "mod": 1 if accept else -1,
+            "is_meta": False,
+            "velocity": 1,
+        }
         return self._put("/comments", payload).json()
 
     # ------------------------------------------------------------------ votes

@@ -318,11 +318,12 @@ paths:
                   description: external identity id for SSO participants (processed before ensureParticipant)
                 vote:
                   type: integer
-                  description: auto-vote on own comment (-1 agree, 0 pass, 1 disagree); seed comments default to
-                    0 if omitted
+                  description: 'auto-vote on own statement: -1 agree, 0 pass, 1 disagree; omit (and omit --is-seed)
+                    for no vote at all'
                 is_seed:
                   type: boolean
-                  description: mark as seed statement; auto-approved regardless of moderation settings
+                  description: mark as seed statement; auto-approved regardless of moderation, and the server records
+                    a default pass vote by the submitter unless --vote is given
               required:
               - conversation_id
               - txt
@@ -794,7 +795,7 @@ paths:
                   description: 'declared twice: resolves zid and keeps the string for URL building'
                 is_active:
                   type: boolean
-                  description: ''
+                  description: true = open for voting, false = closed
                 is_anon:
                   type: boolean
                   description: ''
@@ -830,13 +831,13 @@ paths:
                   description: ''
                 vis_type:
                   type: integer
-                  description: ''
+                  description: 0 = participants do not see the opinion-group visualisation, 1 = they do
                 help_type:
                   type: integer
-                  description: ''
+                  description: 0 = hide the explanation text above voting, 1 = show it
                 write_type:
                   type: integer
-                  description: ''
+                  description: 0 = participants cannot add statements (fixed ballot), 1 = they can
                 bgcolor:
                   type: string
                   description: '''default'' clears to null'
@@ -873,7 +874,7 @@ paths:
                   description: ''
                 subscribe_type:
                   type: integer
-                  description: ''
+                  description: 0 = no subscribe-by-email prompt after voting, 1 = show it
                 treevite_enabled:
                   type: boolean
                   description: DEFAULT false — reset to false when omitted

@@ -1,6 +1,6 @@
 [project]
 name = "polis-cli"
-version = "0.1.0"
+version = "0.1.1"
 description = "Thin command-line client for driving Pol.is-family instances (Pol.is, Voxit) over their HTTP API - create, seed, run, moderate, and export conversations machine-to-machine."
 readme = "README.md"
 license = "Apache-2.0"

@@ -387,14 +387,14 @@
           "location": "body",
           "required": false,
           "type": "getIntInRange(-1,1)",
-          "description": "auto-vote on own comment (-1 agree, 0 pass, 1 disagree); seed comments default to 0 if omitted"
+          "description": "auto-vote on own statement: -1 agree, 0 pass, 1 disagree; omit (and omit --is-seed) for no vote at all"
         },
         {
           "name": "is_seed",
           "location": "body",
           "required": false,
           "type": "getBool",
-          "description": "mark as seed statement; auto-approved regardless of moderation settings"
+          "description": "mark as seed statement; auto-approved regardless of moderation, and the server records a default pass vote by the submitter unless --vote is given"
         }
       ],
       "description": "Submit a new comment/statement; creates the participant if missing, runs profanity/toxicity moderation (pro conversations), detects language, optionally records an initial vote, notifies moderators.",
@@ -940,7 +940,8 @@
           "name": "is_active",
           "location": "body",
           "required": false,
-          "type": "getBool"
+          "type": "getBool",
+          "description": "true = open for voting, false = closed"
         },
         {
           "name": "is_anon",
@@ -1016,19 +1017,22 @@
           "name": "vis_type",
           "location": "body",
           "required": false,
-          "type": "getInt"
+          "type": "getInt",
+          "description": "0 = participants do not see the opinion-group visualisation, 1 = they do"
         },
         {
           "name": "help_type",
           "location": "body",
           "required": false,
-          "type": "getInt"
+          "type": "getInt",
+          "description": "0 = hide the explanation text above voting, 1 = show it"
         },
         {
           "name": "write_type",
           "location": "body",
           "required": false,
-          "type": "getInt"
+          "type": "getInt",
+          "description": "0 = participants cannot add statements (fixed ballot), 1 = they can"
         },
         {
           "name": "bgcolor",
@@ -1108,7 +1112,8 @@
           "name": "subscribe_type",
           "location": "body",
           "required": false,
-          "type": "getInt"
+          "type": "getInt",
+          "description": "0 = no subscribe-by-email prompt after voting, 1 = show it"
         },
         {
           "name": "treevite_enabled",

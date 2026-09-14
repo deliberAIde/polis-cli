@@ -170,6 +170,13 @@ def seed(
     conversation_id: str,
     statements_file: Path = typer.Argument(..., help="CSV/TXT: one statement per line."),
     profile: str = typer.Option("local", "--profile", "-p"),
+    no_author_vote: bool = typer.Option(
+        False,
+        "--no-author-vote",
+        help="Do not record the seeding user's default pass vote on each statement, so the "
+        "conversation starts with zero votes and zero voters. Requires a moderator profile "
+        "(statements are then approved as the moderator's own rather than as seeds).",
+    ),
 ):
     """Bulk-seed statements into a conversation."""
     client = _client(profile)
@@ -182,8 +189,8 @@ def seed(
     ]
     results = []
     for text in lines:
-        results.append(client.seed_comment(conversation_id, text))
-    _emit({"conversation_id": conversation_id, "seeded": len(results)})
+        results.append(client.seed_comment(conversation_id, text, author_vote=not no_author_vote))
+    _emit({"conversation_id": conversation_id, "seeded": len(results), "author_vote": not no_author_vote})
 
 
 @app.command()
@@ -194,7 +201,9 @@ def moderate(
 ):
     """List (and optionally accept) statements awaiting moderation."""
     client = _client(profile)
-    queued = client.list_comments(conversation_id, moderation=True)
+    # The server's moderation listing returns every statement with its flags; "awaiting
+    # moderation" means mod == 0 (1 = accepted, -1 = rejected).
+    queued = [c for c in client.list_comments(conversation_id, moderation=True) if c.get("mod") == 0]
     if accept_all:
         for c in queued:
             client.moderate_comment(conversation_id, c["tid"], accept=True)
